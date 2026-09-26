@@ -7,15 +7,9 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
-// ==============================================
-// BANCO — PGBouncer com ID do projeto
-// ==============================================
+// ========== BANCO — POOLER (funciona em IPv4!) ==========
 const pool = new Pool({
-  host: 'rurubtvjhtymhriwlrlr.supabase.co', // ✅ Sem "db." no início!
-  port: 5432,
-  user: 'postgres',
-  password: 'leandrocanuto123',
-  database: 'postgres',
+  connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
@@ -30,13 +24,10 @@ async function testarBanco() {
 }
 testarBanco();
 
-// ==============================================
-// VARIÁVEIS DA EVOLUTION — JÁ ESTÃO CERTAS!
-// ==============================================
 console.log('🔍 VARIÁVEIS:');
-console.log('EVO_URL:', process.env.EVO_URL || '❌ FALTA');
+console.log('DATABASE_URL:', process.env.DATABASE_URL ? '✅ OK' : '❌ FALTA');
+console.log('EVO_URL:', process.env.EVO_URL ? '✅ OK' : '❌ FALTA');
 console.log('EVO_KEY:', process.env.EVO_KEY ? '✅ OK' : '❌ FALTA');
-console.log('EVO_INSTANCE:', process.env.EVO_INSTANCE || 'marmitaria');
 
 bot.init(app, pool);
 
