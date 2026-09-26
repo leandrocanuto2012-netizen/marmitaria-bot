@@ -7,7 +7,9 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
-// ========== BANCO ==========
+// ==============================================
+// BANCO — SUPABASE
+// ==============================================
 const pool = new Pool({
   host: 'rurubtvjhtymhriwlrlr.supabase.co',
   port: 5432,
@@ -28,7 +30,9 @@ async function testarBanco() {
 }
 testarBanco();
 
-// ========== ROTAS DO CARDÁPIO ==========
+// ==============================================
+// ROTAS DO CARDÁPIO
+// ==============================================
 
 // Listar categorias
 app.get('/api/menu/categories', async (req, res) => {
@@ -42,7 +46,7 @@ app.get('/api/menu/categories', async (req, res) => {
   }
 });
 
-// Listar itens do cardápio
+// Listar itens
 app.get('/api/menu/items', async (req, res) => {
   try {
     const { category } = req.query;
@@ -73,10 +77,8 @@ app.post('/api/menu/orders', async (req, res) => {
     await client.query('BEGIN');
     const { customer_name, customer_phone, customer_address, observations, payment_method, items } = req.body;
     
-    // Calcular total
     const total = items.reduce((sum, i) => sum + (i.quantity * i.unit_price), 0);
     
-    // Inserir pedido
     const orderRes = await client.query(
       `INSERT INTO menu_orders 
        (customer_name, customer_phone, customer_address, observations, total_amount, payment_method)
@@ -86,7 +88,6 @@ app.post('/api/menu/orders', async (req, res) => {
     
     const order = orderRes.rows[0];
     
-    // Inserir itens
     for (const item of items) {
       await client.query(
         `INSERT INTO menu_order_items (order_id, menu_item_id, quantity, unit_price, subtotal)
@@ -96,6 +97,10 @@ app.post('/api/menu/orders', async (req, res) => {
     }
     
     await client.query('COMMIT');
+    
+    // 🔔 Enviar aviso no WhatsApp para o admin
+    await bot.avisarPedidoNoWhatsApp(order, items);
+    
     res.status(201).json(order);
   } catch (e) {
     await client.query('ROLLBACK');
@@ -105,10 +110,14 @@ app.post('/api/menu/orders', async (req, res) => {
   }
 });
 
-// ========== INICIAR BOT ==========
+// ==============================================
+// INICIAR BOT
+// ==============================================
 console.log('🔍 VARIÁVEIS:');
 console.log('EVO_URL:', process.env.EVO_URL || '❌ FALTA');
 console.log('EVO_KEY:', process.env.EVO_KEY ? '✅ OK' : '❌ FALTA');
+console.log('EVO_INSTANCE:', process.env.EVO_INSTANCE || 'marmitaria');
+
 bot.init(app, pool);
 
 const PORTA = process.env.PORT || 3000;
