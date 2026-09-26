@@ -7,21 +7,18 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
-
-// ========== BANCO DE DADOS (SUPABASE) ==========
+// ========== BANCO DE DADOS — FORÇA IPv4 ==========
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
   host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
+  port: process.env.DB_PORT || 5432,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  database: process.env.DB_NAME,
-  // FORÇA IPv4 — resolve o erro ENETUNREACH
-  family: 4
+  database: process.env.DB_NAME || 'postgres',
+  ssl: { rejectUnauthorized: false },
+  family: 4 // ✅ Isso resolve o erro ENETUNREACH!
 });
 
-// Testar conexão com banco
+// Testar conexão
 async function testarBanco() {
   try {
     const cliente = await pool.connect();
@@ -33,12 +30,10 @@ async function testarBanco() {
 }
 testarBanco();
 
-// ========== TESTE DE VARIÁVEIS ==========
-console.log('🔍 VARIÁVEIS CARREGADAS:');
-console.log('DATABASE_URL:', process.env.DATABASE_URL ? '✅ OK' : '❌ FALTA');
+// ========== VARIÁVEIS ==========
+console.log('🔍 VARIÁVEIS:');
+console.log('DB_HOST:', process.env.DB_HOST ? '✅ OK' : '❌ FALTA');
 console.log('EVO_URL:', process.env.EVO_URL ? '✅ OK' : '❌ FALTA');
-console.log('EVO_KEY:', process.env.EVO_KEY ? '✅ OK' : '❌ FALTA');
-console.log('EVO_INSTANCE:', process.env.EVO_INSTANCE || 'marmitaria');
 
 // ========== INICIALIZAR BOT ==========
 bot.init(app, pool);
@@ -47,5 +42,4 @@ bot.init(app, pool);
 const PORTA = process.env.PORT || 3000;
 app.listen(PORTA, () => {
   console.log(`🚀 SERVIDOR RODANDO NA PORTA ${PORTA}`);
-  console.log(`📡 WEBHOOK PRONTO PARA RECEBER`);
 });
