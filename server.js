@@ -25,19 +25,19 @@ async function testarBanco() {
 }
 testarBanco();
 
-// ========== INICIALIZAR BOT ==========
-bot.init(app, pool);
-
-// ========== TESTE DE AMBIENTE ==========
+// ========== TESTE DE VARIÁVEIS ==========
 console.log('🔍 VARIÁVEIS CARREGADAS:');
 console.log('DATABASE_URL:', process.env.DATABASE_URL ? '✅ OK' : '❌ FALTA');
 console.log('EVO_URL:', process.env.EVO_URL ? '✅ OK' : '❌ FALTA');
 console.log('EVO_KEY:', process.env.EVO_KEY ? '✅ OK' : '❌ FALTA');
 console.log('EVO_INSTANCE:', process.env.EVO_INSTANCE || 'marmitaria');
 
+// ========== INICIALIZAR BOT ==========
+bot.init(app, pool);
+
 // ========== INICIAR SERVIDOR ==========
 const PORTA = process.env.PORT || 3000;
 app.listen(PORTA, () => {
   console.log(`🚀 SERVIDOR RODANDO NA PORTA ${PORTA}`);
-  console.log(`📡 WEBHOOK: https://SEU-RENDER.onrender.com/api/bot/webhook`);
+  console.log(`📡 WEBHOOK PRONTO PARA RECEBER`);
 });
