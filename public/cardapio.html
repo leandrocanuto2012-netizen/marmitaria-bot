@@ -1,1 +1,172 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cardápio - Marmitaria</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+    body { background: #fefefe; padding-bottom: 80px; }
+    header { background: #d32f2f; color: white; padding: 20px; text-align: center; }
+    .categories { display: flex; overflow-x: auto; gap: 10px; padding: 15px; background: #fff; position: sticky; top: 0; z-index: 10; }
+    .cat-btn { padding: 10px 20px; border: none; border-radius: 25px; background: #f5f5f5; cursor: pointer; white-space: nowrap; }
+    .cat-btn.active { background: #d32f2f; color: white; }
+    .items { padding: 15px; max-width: 800px; margin: 0 auto; }
+    .item-card { background: white; border-radius: 12px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .item-card h3 { color: #222; margin-bottom: 5px; }
+    .item-card p { color: #666; font-size: 14px; margin-bottom: 10px; }
+    .price { font-size: 20px; font-weight: bold; color: #2e7d32; }
+    .add-btn { background: #d32f2f; color: white; border: none; padding: 10px 15px; border-radius: 8px; cursor: pointer; margin-top: 10px; width: 100%; font-size: 16px; }
+    .cart-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; padding: 15px; box-shadow: 0 -4px 12px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+    .cart-btn { background: #2e7d32; color: white; border: none; padding: 12px 25px; border-radius: 8px; font-size: 16px; cursor: pointer; }
+    .cart-total { font-weight: bold; font-size: 18px; }
+    .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); align-items: center; justify-content: center; padding: 20px; }
+    .modal.open { display: flex; }
+    .modal-content { background: white; padding: 25px; border-radius: 12px; max-width: 450px; width: 100%; }
+    .modal-content h2 { margin-bottom: 20px; }
+    input, textarea, select { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; }
+    .submit-btn { background: #2e7d32; color: white; border: none; padding: 14px; border-radius: 8px; width: 100%; font-size: 16px; cursor: pointer; }
+    .close-btn { background: #eee; border: none; padding: 10px; border-radius: 8px; margin-top: 10px; width: 100%; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🍽️ Nosso Cardápio</h1>
+    <p>Faça seu pedido abaixo</p>
+  </header>
 
+  <div class="categories" id="categories">
+    <button class="cat-btn active" data-cat="">Todos</button>
+  </div>
+
+  <div class="items" id="items"></div>
+
+  <div class="cart-bar" id="cartBar" style="display: none;">
+    <div>
+      <span id="cartCount">0</span> item(s) • 
+      <span class="cart-total" id="cartTotal">R$ 0,00</span>
+    </div>
+    <button class="cart-btn" onclick="abrirModal()">Finalizar Pedido</button>
+  </div>
+
+  <!-- Modal de Dados -->
+  <div class="modal" id="checkoutModal">
+    <div class="modal-content">
+      <h2>📋 Seus Dados</h2>
+      <input type="text" id="nome" placeholder="Seu nome" required>
+      <input type="tel" id="telefone" placeholder="Seu WhatsApp" required>
+      <textarea id="endereco" placeholder="Endereço completo" rows="3"></textarea>
+      <select id="pagamento">
+        <option value="">Forma de Pagamento</option>
+        <option value="dinheiro">Dinheiro</option>
+        <option value="pix">PIX</option>
+        <option value="cartao">Cartão</option>
+      </select>
+      <textarea id="observacoes" placeholder="Observações (opcional)" rows="2"></textarea>
+      <button class="submit-btn" onclick="enviarPedido()">✅ Confirmar Pedido</button>
+      <button class="close-btn" onclick="fecharModal()">Voltar</button>
+    </div>
+  </div>
+
+  <script>
+    let carrinho = [];
+    let categorias = [];
+    let itens = [];
+    let catAtiva = '';
+
+    async function carregarDados() {
+      const [catRes, itRes] = await Promise.all([
+        fetch('/api/menu/categories').then(r => r.json()),
+        fetch('/api/menu/items').then(r => r.json())
+      ]);
+      categorias = catRes;
+      itens = itRes;
+      renderCategorias();
+      renderItens();
+    }
+
+    function renderCategorias() {
+      const container = document.getElementById('categories');
+      container.innerHTML = `<button class="cat-btn ${catAtiva===''?'active':''}" data-cat="">Todos</button>`;
+      categorias.forEach(c => {
+        container.innerHTML += `<button class="cat-btn ${catAtiva===c.id?'active':''}" data-cat="${c.id}">${c.name}</button>`;
+      });
+      container.querySelectorAll('.cat-btn').forEach(btn => {
+        btn.onclick = () => {
+          catAtiva = btn.dataset.cat;
+          renderCategorias();
+          renderItens();
+        };
+      });
+    }
+
+    function renderItens() {
+      const filtrados = catAtiva ? itens.filter(i => i.category_id === catAtiva) : itens;
+      const container = document.getElementById('items');
+      container.innerHTML = filtrados.map(item => `
+        <div class="item-card">
+          <h3>${item.name}</h3>
+          <p>${item.description || ''}</p>
+          <div class="price">R$ ${item.price.toFixed(2)}</div>
+          <button class="add-btn" onclick="adicionarAoCarrinho('${item.id}', '${item.name}', ${item.price})">+ Adicionar</button>
+        </div>
+      `).join('');
+    }
+
+    function adicionarAoCarrinho(id, nome, preco) {
+      const existente = carrinho.find(i => i.id === id);
+      if (existente) existente.quantity++;
+      else carrinho.push({ id, name: nome, unit_price: preco, quantity: 1 });
+      atualizarCarrinho();
+    }
+
+    function atualizarCarrinho() {
+      const total = carrinho.reduce((s, i) => s + (i.quantity * i.unit_price), 0);
+      document.getElementById('cartCount').textContent = carrinho.reduce((s, i) => s + i.quantity, 0);
+      document.getElementById('cartTotal').textContent = `R$ ${total.toFixed(2)}`;
+      document.getElementById('cartBar').style.display = carrinho.length ? 'flex' : 'none';
+    }
+
+    function abrirModal() {
+      document.getElementById('checkoutModal').classList.add('open');
+    }
+
+    function fecharModal() {
+      document.getElementById('checkoutModal').classList.remove('open');
+    }
+
+    async function enviarPedido() {
+      const dados = {
+        customer_name: document.getElementById('nome').value,
+        customer_phone: document.getElementById('telefone').value,
+        customer_address: document.getElementById('endereco').value,
+        payment_method: document.getElementById('pagamento').value,
+        observations: document.getElementById('observacoes').value,
+        items: carrinho
+      };
+
+      if (!dados.customer_name || !dados.customer_phone) {
+        alert('Preencha nome e telefone!');
+        return;
+      }
+
+      const res = await fetch('/api/menu/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dados)
+      });
+
+      if (res.ok) {
+        alert('✅ Pedido enviado com sucesso! Agradecemos a preferência!');
+        carrinho = [];
+        atualizarCarrinho();
+        fecharModal();
+      } else {
+        alert('❌ Erro ao enviar. Tente novamente.');
+      }
+    }
+
+    carregarDados();
+  </script>
+</body>
+</html>
