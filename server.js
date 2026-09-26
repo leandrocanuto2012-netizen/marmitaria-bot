@@ -7,24 +7,18 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
-// ========== FORÇA IPv4 ==========
-function extrairConexao(url) {
-  const m = url.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/([^?]+)/);
-  if (!m) return null;
-  return {
-    host: m[3],
-    port: parseInt(m[4]),
-    user: m[1],
-    password: m[2],
-    database: m[5],
-    ssl: { rejectUnauthorized: false },
-    family: 4
-  };
-}
+// ========== CONEXÃO DIRETA — FORÇA IPv4 ==========
+const pool = new Pool({
+  host: 'db.rurubtvjhtymhriwlrlr.supabase.co',
+  port: 5432,
+  user: 'postgres',
+  password: 'leandrocanuto123',
+  database: 'postgres',
+  ssl: { rejectUnauthorized: false },
+  family: 4 // 🔑 IGNORA IPv6 — ISSO RESOLVE!
+});
 
-const config = extrairConexao(process.env.DATABASE_URL);
-const pool = new Pool(config);
-
+// Testar conexão
 async function testarBanco() {
   try {
     const cliente = await pool.connect();
@@ -32,18 +26,23 @@ async function testarBanco() {
     cliente.release();
   } catch (erro) {
     console.error('❌ ERRO NO BANCO:', erro.message);
+    console.error('Detalhes:', erro);
   }
 }
 testarBanco();
 
+// ========== VARIÁVEIS DA EVOLUTION ==========
 console.log('🔍 VARIÁVEIS:');
-console.log('DATABASE_URL:', process.env.DATABASE_URL ? '✅ OK' : '❌ FALTA');
-console.log('EVO_URL:', process.env.EVO_URL ? '✅ OK' : '❌ FALTA');
+console.log('EVO_URL:', process.env.EVO_URL || '❌ FALTA');
 console.log('EVO_KEY:', process.env.EVO_KEY ? '✅ OK' : '❌ FALTA');
+console.log('EVO_INSTANCE:', process.env.EVO_INSTANCE || 'marmitaria');
 
+// ========== INICIAR BOT ==========
 bot.init(app, pool);
 
+// ========== PORTA ==========
 const PORTA = process.env.PORT || 3000;
 app.listen(PORTA, () => {
   console.log(`🚀 SERVIDOR RODANDO NA PORTA ${PORTA}`);
+  console.log(`📡 WEBHOOK PRONTO!`);
 });
