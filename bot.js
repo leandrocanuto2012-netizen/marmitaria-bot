@@ -1,5 +1,4 @@
 require('dotenv').config();
-const { Pool } = require('pg');
 const axios = require('axios');
 const crypto = require('crypto');
 
@@ -64,11 +63,24 @@ function statusTexto(status, estimado) {
 module.exports.init = function(app, pool) {
 
   async function enviarWhatsApp(tel, txt) {
-    if (!process.env.EVO_URL) return console.log('📤 Simulado →', tel, ':', txt);
+    if (!process.env.EVO_URL) {
+      console.log('📤 [MODO TESTE] Enviando para', tel, ':', txt);
+      return;
+    }
     try {
-      await axios.post(`${process.env.EVO_URL}/message/sendText/${process.env.EVO_INSTANCE}`,
-        { number: tel, text: txt }, { headers: { apikey: process.env.EVO_KEY } });
-    } catch(e) { console.error('Erro envio:', e.message); }
+      const url = `${process.env.EVO_URL}/message/sendText/${process.env.EVO_INSTANCE}`;
+      console.log('📤 Enviando para:', url);
+      
+      await axios.post(url, {
+        number: tel,
+        text: txt
+      }, {
+        headers: { apikey: process.env.EVO_KEY }
+      });
+      console.log('✅ Mensagem enviada com sucesso!');
+    } catch (e) {
+      console.error('❌ Erro ao enviar:', e.response?.data || e.message);
+    }
   }
 
   async function buscarCliente(tel) {
@@ -141,54 +153,70 @@ module.exports.init = function(app, pool) {
     } catch(e) { await pool.query('ROLLBACK'); throw e; }
   }
 
-  // WEBHOOK PRINCIPAL
+  // ===== WEBHOOK PRINCIPAL =====
   app.post('/api/bot/webhook', async (req, res) => {
     try {
-      const { data } = req.body;
-      if (!data?.message) return res.json({ok:true});
+      console.log('📥 RECEBIU DADOS!');
+      
+      const body = req.body;
+      const data = body.data || body;
+      const messageData = data.message || data;
 
-      const tel = data.key.remoteJid.replace('@s.whatsapp.net','');
-      const texto = (data.message.conversation || data.message.extendedTextMessage?.text || '').trim();
-      if (!texto) return res.json({ok:true});
+      const remoteJid = data.key?.remoteJid || data.remoteJid || data.chatId;
+      if (!remoteJid) {
+        console.log('⚠️ Sem remetente');
+        return res.json({ ok: true });
+      }
+      
+      const telefone = remoteJid.replace('@s.whatsapp.net', '');
+      
+      const textoRecebido = 
+        messageData.conversation ||
+        messageData.extendedTextMessage?.text ||
+        messageData.text ||
+        messageData.content ||
+        '';
 
-      let cliente = await buscarCliente(tel);
-      const conv = await buscarOuCriarConversa(tel, cliente?.id);
-      await salvarMsg(conv.id, 'ENTRADA', texto);
+      console.log(`📱 De: ${telefone} | Texto: "${textoRecebido}"`);
+
+      if (!textoRecebido.trim()) {
+        console.log('⚠️ Mensagem vazia');
+        return res.json({ ok: true });
+      }
+
+      let cliente = await buscarCliente(telefone);
+      const conv = await buscarOuCriarConversa(telefone, cliente?.id);
+      await salvarMsg(conv.id, 'ENTRADA', textoRecebido);
 
       let resposta;
-      const confirmou = /^(sim|s|confirmo|pode|ok|certo)/i.test(texto);
-      const cancelou = /^(nao|não|n|cancela|erro)/i.test(texto);
+      const confirmou = /^(sim|s|confirmo|pode|ok|certo)/i.test(textoRecebido);
+      const cancelou = /^(nao|não|n|cancela|erro)/i.test(textoRecebido);
 
-      // STATUS
-      if (cliente && clientePerguntouStatus(texto)) {
-        const ped = await buscarUltimoPedido(cliente.id, tel);
+      if (cliente && clientePerguntouStatus(textoRecebido)) {
+        const ped = await buscarUltimoPedido(cliente.id, telefone);
         resposta = ped
           ? `${cliente.name}, seu pedido:\n📦 ${ped.itens}\n${statusTexto(ped.status, ped.estimated_ready_at)}`
-          : `${cliente.name}, não achei pedido ativo. Quer fazer um novo?\n${CARDAPIO_TEXTO}`;
+          : `${cliente.name}, não achei pedido ativo.\n${CARDAPIO_TEXTO}`;
       }
-      // CADASTRAR NOME
       else if (conv.awaiting_name) {
-        const nome = texto.split(' ').map(p=>p.charAt(0).toUpperCase()+p.slice(1).toLowerCase()).join(' ').slice(0,100);
-        if (!cliente) cliente = {id: await cadastrarCliente(tel, nome), name: nome};
+        const nome = textoRecebido.split(' ').map(p=>p.charAt(0).toUpperCase()+p.slice(1).toLowerCase()).join(' ').slice(0,100);
+        if (!cliente) cliente = {id: await cadastrarCliente(telefone, nome), name: nome};
         else await pool.query('UPDATE customers SET name = $1 WHERE id = $2', [nome, cliente.id]);
         await pool.query('UPDATE bot_chat SET awaiting_name = false, stage = $1 WHERE id = $2', ['ESCOLHENDO', conv.id]);
         resposta = `Prazer, ${nome}! ✅ Cadastrado!\n\n${CARDAPIO_TEXTO}\n\nÉ só me dizer o que quer!`;
       }
-      // CONFIRMAR PEDIDO
       else if (conv.cart_data && confirmou) {
         const carrinho = JSON.parse(conv.cart_data);
-        const res = await finalizarPedido(tel, cliente?.id, carrinho, cliente?.name || 'Cliente');
+        const res = await finalizarPedido(telefone, cliente?.id, carrinho, cliente?.name || 'Cliente');
         await pool.query('UPDATE bot_chat SET cart_data = NULL, stage = $1 WHERE id = $2', ['PEDIDO_FEITO', conv.id]);
         resposta = `✅ PEDIDO CONFIRMADO!\n\n${carrinhoTexto(carrinho)}\n\n💰 Total: R$ ${res.total.toFixed(2).replace('.',',')}\n⏱️ ~${res.tempo} min\n📦 Pedido: ${res.orderId.slice(0,8).toUpperCase()}`;
       }
-      // CANCELAR
       else if (conv.cart_data && cancelou) {
         await pool.query('UPDATE bot_chat SET cart_data = NULL, stage = $1 WHERE id = $2', ['ESCOLHENDO', conv.id]);
         resposta = `Tudo bem! Pode escolher:\n${CARDAPIO_TEXTO}`;
       }
-      // NOVO PEDIDO
       else if (cliente) {
-        const carrinho = interpretarPedido(texto);
+        const carrinho = interpretarPedido(textoRecebido);
         if (carrinho.length) {
           const total = carrinhoTotal(carrinho);
           await pool.query('UPDATE bot_chat SET cart_data = $1, stage = $2 WHERE id = $3',
@@ -198,40 +226,23 @@ module.exports.init = function(app, pool) {
           resposta = `${cliente.name}, não entendi. ${CARDAPIO_TEXTO}`;
         }
       }
-      // PERGUNTAR NOME
       else {
         await pool.query('UPDATE bot_chat SET awaiting_name = true, stage = $1 WHERE id = $2', ['PERGUNTANDO_NOME', conv.id]);
         resposta = `Olá! 👋 Como posso te chamar? Me diga seu nome!`;
       }
 
-      await enviarWhatsApp(tel, resposta);
+      await enviarWhatsApp(telefone, resposta);
       await salvarMsg(conv.id, 'SAIDA', resposta);
       await pool.query('UPDATE bot_chat SET last_message_at = NOW() WHERE id = $1', [conv.id]);
-      res.json({ok:true});
-    } catch(e) {
-      console.error('Erro:', e);
+      
+      console.log(`✅ RESPOSTA ENVIADA!`);
+      res.json({ ok: true });
+      
+    } catch (e) {
+      console.error('❌ ERRO NO WEBHOOK:', e);
       res.status(500).json({erro: e.message});
     }
   });
 
-  // Notificação quando pedido fica PRONTO
-  app.patch('/api/pedidos/:id/status', async (req, res) => {
-    const { status } = req.body;
-    const { id } = req.params;
-    await pool.query('UPDATE orders SET status = $1 WHERE id = $2', [status, id]);
-
-    if (status === 'PRONTO') {
-      const r = await pool.query(`
-        SELECT c.name, c.phone FROM orders o
-        LEFT JOIN customers c ON o.customer_id = c.id
-        WHERE o.id = $1`, [id]);
-      if (r.rows[0]?.phone) {
-        await enviarWhatsApp(r.rows[0].phone,
-          `Olá ${r.rows[0].name}! 🍱✅ SEU PEDIDO ESTÁ PRONTO! Pode retirar no balcão agora!`);
-      }
-    }
-    res.json({ok:true});
-  });
-
-  console.log('🤖 Bot carregado! Webhook: /api/bot/webhook');
+  console.log('🤖 Bot carregado e pronto!');
 };
