@@ -8,10 +8,10 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // ==============================================
-// BANCO — PGBOUNCER do Supabase (resolve IPv6!)
+// BANCO — SEU HOST CERTO!
 // ==============================================
 const pool = new Pool({
-  host: 'aws-0-sa-east-1.pooler.supabase.com', // 🔑 ESSE É O ENDEREÇO CERTO!
+  host: 'db.rurubtvjhtymhriwlrlr.supabase.co',
   port: 5432,
   user: 'postgres',
   password: 'leandrocanuto123',
@@ -43,5 +43,4 @@ bot.init(app, pool);
 const PORTA = process.env.PORT || 3000;
 app.listen(PORTA, () => {
   console.log(`🚀 SERVIDOR RODANDO NA PORTA ${PORTA}`);
-  console.log(`📡 WEBHOOK PRONTO!`);
 });
