@@ -8,10 +8,10 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // ==============================================
-// BANCO — Usando PGBouncer do Supabase
+// BANCO — PGBouncer com ID do projeto
 // ==============================================
 const pool = new Pool({
-  host: 'aws-0-sa-east-1.pooler.supabase.com',
+  host: 'rurubtvjhtymhriwlrlr.supabase.co', // ✅ Sem "db." no início!
   port: 5432,
   user: 'postgres',
   password: 'leandrocanuto123',
@@ -31,7 +31,7 @@ async function testarBanco() {
 testarBanco();
 
 // ==============================================
-// VARIÁVEIS — EVOLUTION
+// VARIÁVEIS DA EVOLUTION — JÁ ESTÃO CERTAS!
 // ==============================================
 console.log('🔍 VARIÁVEIS:');
 console.log('EVO_URL:', process.env.EVO_URL || '❌ FALTA');
