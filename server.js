@@ -4,11 +4,11 @@ const { Pool } = require('pg');
 const axios = require('axios');
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 app.use(express.static('public'));
 
 // =============================================
-// BANCO DE DADOS
+// BANCO DE DADOS — SUPABASE
 // =============================================
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -33,32 +33,36 @@ const EVO_URL = process.env.EVO_URL;
 const EVO_KEY = process.env.EVO_KEY;
 const EVO_INSTANCE = process.env.EVO_INSTANCE || 'marmitaria';
 
-console.log('🔍 EVO_URL:', EVO_URL ? '✅' : '❌');
-console.log('🔍 EVO_KEY:', EVO_KEY ? '✅' : '❌');
+console.log('🔍 EVO_URL:', EVO_URL || '❌ FALTA');
+console.log('🔍 EVO_KEY:', EVO_KEY ? '✅ OK' : '❌ FALTA');
+console.log('🔍 INSTÂNCIA:', EVO_INSTANCE);
 
 // =============================================
 // ENVIAR MENSAGEM
 // =============================================
 async function enviarMensagem(telefone, texto) {
   try {
-    await axios.post(
+    const resposta = await axios.post(
       `${EVO_URL}/message/sendText/${EVO_INSTANCE}`,
       { number: telefone, text: texto },
-      { headers: { apikey: EVO_KEY } }
+      { headers: { apikey: EVO_KEY }, timeout: 15000 }
     );
-    console.log('✅ RESPOSTA ENVIADA');
+    console.log('✅ MENSAGEM ENVIADA →', telefone);
+    return resposta.data;
   } catch (e) {
-    console.error('❌ Erro ao enviar:', e.response?.data || e.message);
+    console.error('❌ ERRO AO ENVIAR:', e.response?.data || e.message);
   }
 }
 
 // =============================================
-// PROCESSAR MENSAGEM
+// PROCESSAR MENSAGEM RECEBIDA
 // =============================================
 async function processarMensagem(telefone, texto) {
+  console.log(`💬 Processando de ${telefone}: "${texto}"`);
+  
   const t = texto.trim().toLowerCase();
 
-  if (['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite'].includes(t)) {
+  if (['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'ou'].includes(t)) {
     await enviarMensagem(telefone,
       'Olá! Tudo bem? 😋\n\n' +
       'Seja bem-vindo(a) à nossa Marmitaria!\n' +
@@ -88,32 +92,41 @@ async function processarMensagem(telefone, texto) {
 }
 
 // =============================================
-// ✅ ROTA DO WEBHOOK — CORRESPONDE AO QUE ESTÁ NO RAILWAY
+// ✅ ROTA DO WEBHOOK — CORRESPONDE EXATAMENTE
 // =============================================
 app.post('/api/bot/webhook', async (req, res) => {
+  // Responde RÁPIDO para não dar timeout! ⚡
+  res.status(200).send({ ok: true });
+
+  // Processa depois de responder
   try {
     const { event, data } = req.body;
-    console.log('📩 EVENTO:', event);
+    console.log('📩 EVENTO RECEBIDO:', event);
 
     if (event === 'messages.upsert') {
       const message = data.messages?.[0];
-      if (!message || message.fromMe) return res.sendStatus(200);
+      if (!message || message.fromMe) return;
 
       const telefone = message.key.remoteJid.replace('@s.whatsapp.net', '');
-      const texto = message.message?.conversation || 
-                    message.message?.extendedTextMessage?.text || '';
+      const texto = 
+        message.message?.conversation || 
+        message.message?.extendedTextMessage?.text || 
+        '';
       
-      console.log(`💬 ${telefone}: ${texto}`);
-      await processarMensagem(telefone, texto);
+      if (texto) await processarMensagem(telefone, texto);
     }
-    res.sendStatus(200);
   } catch (e) {
-    console.error('❌ Erro Webhook:', e);
-    res.sendStatus(500);
+    console.error('❌ Erro no processamento:', e.message);
   }
 });
 
-app.get('/', (req, res) => res.send('🚀 Marmitaria Bot — ONLINE!'));
+// Rota de teste
+app.get('/', (req, res) => {
+  res.send('🚀 Marmitaria Bot — ONLINE E FUNCIONANDO! ✅');
+});
 
 const PORTA = process.env.PORT || 10000;
-app.listen(PORTA, () => console.log(`🚀 Rodando na porta ${PORTA}`));
+app.listen(PORTA, () => {
+  console.log(`🚀 SERVIDOR RODANDO NA PORTA ${PORTA}`);
+  console.log(`🔗 Webhook: /api/bot/webhook`);
+});
