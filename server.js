@@ -58,7 +58,7 @@ app.post(['/api/bot/webhook', '/api/bot/webhook'], async (req, res) => {
     console.error('❌ ERRO:', e.message);
   }
 });
-
+}
   res.send('🚀 ONLINE! Webhook: /api/bot/webhook ✅');
 });
 
