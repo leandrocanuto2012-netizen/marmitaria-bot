@@ -5,10 +5,9 @@ const axios = require('axios');
 
 const app = express();
 app.use(express.json({ limit: '5mb' }));
-app.use(express.static('public'));
 
 // =============================================
-// BANCO DE DADOS — SUPABASE
+// BANCO
 // =============================================
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -27,40 +26,57 @@ async function testarBanco() {
 testarBanco();
 
 // =============================================
-// EVOLUTION API
+// EVOLUTION
 // =============================================
 const EVO_URL = process.env.EVO_URL;
 const EVO_KEY = process.env.EVO_KEY;
 const EVO_INSTANCE = process.env.EVO_INSTANCE || 'marmitaria';
 
-console.log('🔍 EVO_URL:', EVO_URL || '❌ FALTA');
-console.log('🔍 EVO_KEY:', EVO_KEY ? '✅ OK' : '❌ FALTA');
-console.log('🔍 INSTÂNCIA:', EVO_INSTANCE);
+console.log('🔍 EVO_URL:', EVO_URL ? '✅' : '❌');
+console.log('🔍 EVO_KEY:', EVO_KEY ? '✅' : '❌');
 
 // =============================================
 // ENVIAR MENSAGEM
 // =============================================
 async function enviarMensagem(telefone, texto) {
   try {
-    const resposta = await axios.post(
+    await axios.post(
       `${EVO_URL}/message/sendText/${EVO_INSTANCE}`,
       { number: telefone, text: texto },
       { headers: { apikey: EVO_KEY }, timeout: 15000 }
     );
-    console.log('✅ MENSAGEM ENVIADA →', telefone);
-    return resposta.data;
+    console.log('✅ ENVIADO PARA:', telefone);
   } catch (e) {
     console.error('❌ ERRO AO ENVIAR:', e.response?.data || e.message);
   }
 }
 
 // =============================================
-// PROCESSAR MENSAGEM RECEBIDA
+// ✅ FUNÇÃO CORRIGIDA — LÊ O TEXTO DE TODOS OS LUGARES
 // =============================================
-async function processarMensagem(telefone, texto) {
-  console.log(`💬 Processando de ${telefone}: "${texto}"`);
+function extrairTextoMensagem(message) {
+  if (!message?.message) return '';
   
+  // Tira de TODOS os lugares possíveis 👇
+  return (
+    message.message.conversation ||
+    message.message.extendedTextMessage?.text ||
+    message.message.imageMessage?.caption ||
+    message.message.videoMessage?.caption ||
+    message.message.documentMessage?.caption ||
+    ''
+  );
+}
+
+async function processarMensagem(telefone, texto) {
+  console.log(`💬 RECEBIDO DE ${telefone}: [${texto}]`); // Mostra o que leu!
+
   const t = texto.trim().toLowerCase();
+
+  if (!t) {
+    await enviarMensagem(telefone, 'Desculpe, não entendi o texto 😅 Pode digitar novamente?');
+    return;
+  }
 
   if (['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'ou'].includes(t)) {
     await enviarMensagem(telefone,
@@ -85,48 +101,41 @@ async function processarMensagem(telefone, texto) {
   }
   else {
     await enviarMensagem(telefone,
-      'Desculpe, não entendi 😅\n' +
+      `Recebi: "${texto}" ✅\n\n` +
       'Digite *cardápio* para ver nossas opções!'
     );
   }
 }
 
 // =============================================
-// ✅ ROTA DO WEBHOOK — CORRESPONDE EXATAMENTE
+// WEBHOOK
 // =============================================
 app.post('/api/bot/webhook', async (req, res) => {
-  // Responde RÁPIDO para não dar timeout! ⚡
-  res.status(200).send({ ok: true });
+  res.status(200).send({ ok: true }); // Responde rápido ⚡
 
-  // Processa depois de responder
   try {
     const { event, data } = req.body;
-    console.log('📩 EVENTO RECEBIDO:', event);
+    console.log('📩 EVENTO:', event);
 
     if (event === 'messages.upsert') {
       const message = data.messages?.[0];
       if (!message || message.fromMe) return;
 
       const telefone = message.key.remoteJid.replace('@s.whatsapp.net', '');
-      const texto = 
-        message.message?.conversation || 
-        message.message?.extendedTextMessage?.text || 
-        '';
+      const texto = extrairTextoMensagem(message); // ✅ Agora lê certo!
       
-      if (texto) await processarMensagem(telefone, texto);
+      await processarMensagem(telefone, texto);
     }
   } catch (e) {
-    console.error('❌ Erro no processamento:', e.message);
+    console.error('❌ ERRO:', e.message);
   }
 });
 
-// Rota de teste
 app.get('/', (req, res) => {
-  res.send('🚀 Marmitaria Bot — ONLINE E FUNCIONANDO! ✅');
+  res.send('🚀 Marmitaria Bot — ONLINE!');
 });
 
 const PORTA = process.env.PORT || 10000;
 app.listen(PORTA, () => {
-  console.log(`🚀 SERVIDOR RODANDO NA PORTA ${PORTA}`);
-  console.log(`🔗 Webhook: /api/bot/webhook`);
+  console.log(`🚀 Rodando na porta ${PORTA}`);
 });
