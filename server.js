@@ -59,8 +59,7 @@ app.post(['api/bot/webhook', 'api/bot/webhook'], async (req, res) => {
   }
 });
 
-app.get('/', (req, res) => {
-  res.send('🚀 ONLINE! Webhook: /api/bot/webhook ✅');
+  res.send('🚀 ONLINE! Webhook: api/bot/webhook ✅');
 });
 
 const PORTA = process.env.PORT || 1000;
