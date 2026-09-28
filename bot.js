@@ -6,6 +6,13 @@ function setBanco(conexao) {
   console.log('✅ [bot.js] Banco conectado');
 }
 
+// Cardápio global
+const cardapio = {
+  '1': { nome: 'Pequena', valor: 15.00 },
+  '2': { nome: 'Média', valor: 18.00 },
+  '3': { nome: 'Grande', valor: 22.00 }
+};
+
 // Função simulada para enviar mensagem (substitua pela sua API real)
 async function enviar(telefone, texto) {
   console.log(`Mensagem para ${telefone}:`);
@@ -31,7 +38,7 @@ async function gerarQrCodeBase64(payload) {
   }
 }
 
-// Lógica principal do bot
+// Função principal do bot
 async function processar(telefone, texto, pushName) {
   const t = String(texto || '').trim().toLowerCase();
   const nome = pushName || 'amigo(a)';
@@ -44,28 +51,21 @@ async function processar(telefone, texto, pushName) {
     );
   }
   else if (['cardápio', 'cardapio', 'menu'].includes(t)) {
-    await enviar(telefone,
-      `🍽️ CARDÁPIO — ${nome}\n\n` +
-      '1️⃣ Pequena — R$ 15,00\n' +
-      '2️⃣ Média — R$ 18,00\n' +
-      '3️⃣ Grande — R$ 22,00\n' +
-      'Para pedir, digite: pedido [número do prato]\nExemplo: pedido 1'
-    );
+    let textoCardapio = `🍽️ CARDÁPIO — ${nome}\n\n`;
+    for (const [key, prato] of Object.entries(cardapio)) {
+      textoCardapio += `${key}️⃣ ${prato.nome} — R$ ${prato.valor.toFixed(2)}\n`;
+    }
+    textoCardapio += '\nPara pedir, digite: pedido [número do prato]\nExemplo: pedido 1';
+    await enviar(telefone, textoCardapio);
   }
   else if (t.startsWith('pedido ')) {
     const num = t.split(' ')[1];
-    const pratos = {
-      '1': { nome: 'Pequena', valor: 15.00 },
-      '2': { nome: 'Média', valor: 18.00 },
-      '3': { nome: 'Grande', valor: 22.00 }
-    };
-    const prato = pratos[num];
+    const prato = cardapio[num];
     if (!prato) {
       await enviar(telefone, `Desculpe, não encontrei o prato número ${num}. Digite *cardápio* para ver as opções.`);
       return;
     }
 
-    // Gerar payload PIX e QR Code
     const chavePix = 'seu-email-ou-chave-pix'; // substitua pela sua chave PIX real
     const descricao = `Pedido ${prato.nome} para ${nome}`;
     const payload = gerarPayloadPix(chavePix, prato.valor, descricao);
@@ -76,7 +76,8 @@ async function processar(telefone, texto, pushName) {
       return;
     }
 
-    // Enviar mensagem com payload e QR Code (texto + link base64)
+    // Aqui você pode salvar o pedido no banco se quiser, usando pool.query()
+
     await enviar(telefone,
       `Pedido: ${prato.nome} — R$ ${prato.valor.toFixed(2)}\n` +
       `Para pagar via PIX, escaneie o QR Code abaixo ou copie o código:\n\n${payload}\n\n` +
@@ -89,4 +90,4 @@ async function processar(telefone, texto, pushName) {
 }
 
 module.exports = { processar, setBanco };
-console.log('🤖 bot.js sem backend PIX carregado ✅');
+console.log('🤖 bot.js ajustado e completo carregado ✅');
