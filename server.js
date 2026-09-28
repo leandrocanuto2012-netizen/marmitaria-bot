@@ -31,7 +31,7 @@ async function iniciar() {
 iniciar();
 
 // ✅ ROTA — ACEITA OS DOIS CAMINHOS
-app.post(['/api/bot/webhook', '/api/bot/webhook'], async (req, res) => {
+app.post(['api/bot/webhook', 'api/bot/webhook'], async (req, res) => {
   res.status(200).json({ ok: true });
 
   try {
