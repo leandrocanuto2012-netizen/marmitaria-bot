@@ -1,127 +1,115 @@
 require('dotenv').config();
 const express = require('express');
 const { Pool } = require('pg');
-const bot = require('./bot');
+const axios = require('axios');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
-// ==============================================
-// BANCO — SUPABASE
-// ==============================================
+// =============================================
+// BANCO DE DADOS — SUPABASE
+// =============================================
 const pool = new Pool({
-  host: 'rurubtvjhtymhriwlrlr.supabase.co',
-  port: 5432,
-  user: 'postgres',
-  password: 'leandrocanuto123',
-  database: 'postgres',
+  connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
 async function testarBanco() {
   try {
-    const cliente = await pool.connect();
+    const client = await pool.connect();
     console.log('✅ BANCO CONECTADO COM SUCESSO!');
-    cliente.release();
-  } catch (erro) {
-    console.error('❌ ERRO NO BANCO:', erro.message);
+    client.release();
+  } catch (e) {
+    console.error('❌ ERRO NO BANCO:', e.message);
   }
 }
 testarBanco();
 
-// ==============================================
-// ROTAS DO CARDÁPIO
-// ==============================================
+// =============================================
+// EVOLUTION API — CONFIGURAÇÃO
+// =============================================
+const EVO_URL = process.env.EVO_URL;
+const EVO_KEY = process.env.EVO_KEY;
+const EVO_INSTANCE = process.env.EVO_INSTANCE || 'marmitaria';
 
-// Listar categorias
-app.get('/api/menu/categories', async (req, res) => {
-  try {
-    const result = await pool.query(
-      'SELECT * FROM product_categories WHERE active = TRUE ORDER BY sort_order, name'
-    );
-    res.json(result.rows);
-  } catch (e) {
-    res.status(500).json({ erro: e.message });
-  }
-});
-
-// Listar itens
-app.get('/api/menu/items', async (req, res) => {
-  try {
-    const { category } = req.query;
-    let query = `
-      SELECT mi.*, pc.name as category_name 
-      FROM menu_items mi
-      LEFT JOIN product_categories pc ON mi.category_id = pc.id
-      WHERE mi.available = TRUE
-    `;
-    const params = [];
-    if (category) {
-      params.push(category);
-      query += ` AND mi.category_id = $${params.length}`;
-    }
-    query += ' ORDER BY mi.sort_order, mi.name';
-    
-    const result = await pool.query(query, params);
-    res.json(result.rows);
-  } catch (e) {
-    res.status(500).json({ erro: e.message });
-  }
-});
-
-// Criar pedido
-app.post('/api/menu/orders', async (req, res) => {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const { customer_name, customer_phone, customer_address, observations, payment_method, items } = req.body;
-    
-    const total = items.reduce((sum, i) => sum + (i.quantity * i.unit_price), 0);
-    
-    const orderRes = await client.query(
-      `INSERT INTO menu_orders 
-       (customer_name, customer_phone, customer_address, observations, total_amount, payment_method)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [customer_name, customer_phone, customer_address, observations, total, payment_method]
-    );
-    
-    const order = orderRes.rows[0];
-    
-    for (const item of items) {
-      await client.query(
-        `INSERT INTO menu_order_items (order_id, menu_item_id, quantity, unit_price, subtotal)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [order.id, item.id, item.quantity, item.unit_price, item.quantity * item.unit_price]
-      );
-    }
-    
-    await client.query('COMMIT');
-    
-    // 🔔 Enviar aviso no WhatsApp para o admin
-    await bot.avisarPedidoNoWhatsApp(order, items);
-    
-    res.status(201).json(order);
-  } catch (e) {
-    await client.query('ROLLBACK');
-    res.status(500).json({ erro: e.message });
-  } finally {
-    client.release();
-  }
-});
-
-// ==============================================
-// INICIAR BOT
-// ==============================================
 console.log('🔍 VARIÁVEIS:');
-console.log('EVO_URL:', process.env.EVO_URL || '❌ FALTA');
-console.log('EVO_KEY:', process.env.EVO_KEY ? '✅ OK' : '❌ FALTA');
-console.log('EVO_INSTANCE:', process.env.EVO_INSTANCE || 'marmitaria');
+console.log('EVO_URL:', EVO_URL ? '✅ OK' : '❌ FALTA');
+console.log('EVO_KEY:', EVO_KEY ? '✅ OK' : '❌ FALTA');
+console.log('EVO_INSTANCE:', EVO_INSTANCE);
 
-bot.init(app, pool);
+// =============================================
+// ROTAS BÁSICAS
+// =============================================
+app.get('/', (req, res) => {
+  res.send('🚀 Servidor Marmitaria funcionando!');
+});
 
-const PORTA = process.env.PORT || 3000;
+// Webhook Evolution
+app.post('/webhook/evolution', async (req, res) => {
+  try {
+    const { event, data } = req.body;
+    console.log('📩 EVENTO:', event);
+
+    if (event === 'messages.upsert') {
+      const message = data.messages?.[0];
+      if (!message || message.fromMe) return res.sendStatus(200);
+
+      const telefone = message.key.remoteJid.replace('@s.whatsapp.net', '');
+      const texto = message.message.conversation || '';
+      
+      console.log(`💬 Mensagem de ${telefone}: ${texto}`);
+      await processarMensagem(telefone, texto);
+    }
+    res.sendStatus(200);
+  } catch (e) {
+    console.error('Erro webhook:', e);
+    res.sendStatus(500);
+  }
+});
+
+// Enviar mensagem
+async function enviarMensagem(telefone, texto) {
+  try {
+    await axios.post(
+      `${EVO_URL}/message/sendText/${EVO_INSTANCE}`,
+      { number: telefone, text: texto },
+      { headers: { 'apikey': EVO_KEY } }
+    );
+    console.log('✅ Mensagem enviada');
+  } catch (e) {
+    console.error('Erro ao enviar:', e.response?.data || e.message);
+  }
+}
+
+// Processar mensagem do bot
+async function processarMensagem(telefone, texto) {
+  const t = texto.trim().toLowerCase();
+
+  if (['menu', 'cardapio', '1'].includes(t)) {
+    await enviarMensagem(telefone, 
+      '🍽️ *CARDÁPIO* 🍽️\n\n' +
+      '1️⃣ Marmita Pequena — R$ 15,00\n' +
+      '2️⃣ Marmita Média — R$ 18,00\n' +
+      '3️⃣ Marmita Grande — R$ 22,00\n' +
+      '4️⃣ Consultar Fiado\n' +
+      '0️⃣ Falar com Atendente\n\n' +
+      'Digite o número do que deseja!'
+    );
+  } else if (['2', 'pedido'].includes(t)) {
+    await enviarMensagem(telefone, 'Ótima escolha! 🥗 Qual item você quer? Digite o número:');
+  } else if (['4', 'fiado'].includes(t)) {
+    await enviarMensagem(telefone, 'Vou verificar seu saldo... 🔄');
+  } else {
+    await enviarMensagem(telefone, 
+      'Olá! Seja bem-vindo(a) à Marmitaria! 😋\n\n' +
+      'Digite *menu* para ver nosso cardápio!'
+    );
+  }
+}
+
+const PORTA = process.env.PORT || 10000;
 app.listen(PORTA, () => {
   console.log(`🚀 SERVIDOR RODANDO NA PORTA ${PORTA}`);
-  console.log(`🍽️ CARDÁPIO DISPONÍVEL`);
 });
