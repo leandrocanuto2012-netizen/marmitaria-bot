@@ -1,204 +1,1081 @@
-let carrinho = [];
-let categorias = [];
-let itens = [];
-let catAtiva = '';
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Configuração Bot WhatsApp • Railway • Webhook • PostgreSQL</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#12100f;
+      --panel:#1a1715;
+      --panel-2:#211d1a;
+      --ink:#f6efe7;
+      --muted:#c5b7aa;
+      --line:rgba(255,255,255,.08);
+      --brand:#f97316;
+      --brand-2:#f59e0b;
+      --ok:#22c55e;
+      --warn:#facc15;
+      --danger:#ef4444;
+      --shadow:0 20px 60px rgba(0,0,0,.35);
+      --radius:22px;
+      --radius-sm:14px;
+      --max:1240px;
+    }
 
-// Carregar dados do backend
-async function carregarDados() {
-  try {
-    const [catRes, itRes] = await Promise.all([
-      fetch('/api/menu/categories').then(r => r.json()),
-      fetch('/api/menu/items').then(r => r.json())
-    ]);
-    categorias = catRes;
-    itens = itRes;
-    renderCategorias();
-    renderItens();
-  } catch (e) {
-    document.getElementById('items').innerHTML = `
-      <div style="text-align:center;padding:40px;color:red;">
-        ⚠️ Erro ao carregar. Atualize a página.
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      font-family:'Inter', sans-serif;
+      background:
+        radial-gradient(circle at 10% 10%, rgba(249,115,22,.14), transparent 30%),
+        radial-gradient(circle at 85% 15%, rgba(245,158,11,.10), transparent 28%),
+        radial-gradient(circle at 50% 100%, rgba(255,255,255,.04), transparent 40%),
+        var(--bg);
+      color:var(--ink);
+      line-height:1.5;
+      overflow-x:hidden;
+    }
+
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      background:
+        linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);
+      background-size:24px 24px;
+      mask-image:radial-gradient(circle at center, black 45%, transparent 90%);
+      opacity:.25;
+    }
+
+    .container{width:min(calc(100% - 32px), var(--max)); margin-inline:auto}
+    .reveal{
+      opacity:0;
+      transform:translateY(24px);
+      transition:opacity .8s ease, transform .8s ease;
+    }
+    .reveal.visible{opacity:1; transform:translateY(0)}
+
+    .stagger > *{
+      opacity:0;
+      transform:translateY(18px);
+      animation:rise .7s ease forwards;
+    }
+    .stagger > *:nth-child(1){animation-delay:.08s}
+    .stagger > *:nth-child(2){animation-delay:.16s}
+    .stagger > *:nth-child(3){animation-delay:.24s}
+    .stagger > *:nth-child(4){animation-delay:.32s}
+    .stagger > *:nth-child(5){animation-delay:.40s}
+    .stagger > *:nth-child(6){animation-delay:.48s}
+    @keyframes rise{
+      to{opacity:1; transform:translateY(0)}
+    }
+
+    .topbar{
+      position:sticky;
+      top:0;
+      z-index:50;
+      backdrop-filter:blur(14px);
+      background:rgba(18,16,15,.72);
+      border-bottom:1px solid var(--line);
+    }
+    .nav{
+      min-height:72px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      text-decoration:none;
+      color:var(--ink);
+    }
+    .brand-mark{
+      width:42px;
+      height:42px;
+      border-radius:12px;
+      background:
+        conic-gradient(from 220deg, var(--brand), var(--brand-2), #fcd34d, var(--brand));
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.12), 0 8px 24px rgba(249,115,22,.25);
+      position:relative;
+    }
+    .brand-mark::after{
+      content:"";
+      position:absolute;
+      inset:9px;
+      border-radius:9px;
+      background:var(--bg);
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
+    }
+    .brand span{
+      font-weight:800;
+      letter-spacing:.02em;
+    }
+    .nav-links{
+      display:flex;
+      gap:18px;
+      flex-wrap:wrap;
+    }
+    .nav-links a{
+      text-decoration:none;
+      color:var(--muted);
+      font-size:.95rem;
+      transition:.25s ease;
+    }
+    .nav-links a:hover{color:var(--ink)}
+    .nav-cta{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      text-decoration:none;
+      color:#1b1207;
+      background:linear-gradient(135deg, #fcd34d, var(--brand));
+      padding:12px 16px;
+      border-radius:999px;
+      font-weight:800;
+      box-shadow:0 10px 30px rgba(249,115,22,.25);
+      transition:transform .2s ease, box-shadow .2s ease;
+    }
+    .nav-cta:hover{transform:translateY(-2px) scale(1.02)}
+    .nav-cta:active{transform:translateY(0) scale(.99)}
+
+    .hero{
+      padding:clamp(36px, 6vw, 80px) 0 32px;
+    }
+    .hero-grid{
+      display:grid;
+      grid-template-columns:1.15fr .85fr;
+      gap:24px;
+      align-items:stretch;
+    }
+    .hero-copy, .hero-panel, .section-panel, .code-shell, .mini-panel{
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      position:relative;
+      overflow:hidden;
+    }
+    .hero-copy{
+      padding:clamp(28px, 4vw, 48px);
+      min-height:560px;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+    }
+    .hero-copy::before,
+    .hero-panel::before,
+    .section-panel::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:linear-gradient(135deg, rgba(249,115,22,.08), transparent 35%, rgba(245,158,11,.05));
+      pointer-events:none;
+    }
+    .eyebrow{
+      display:inline-flex;
+      gap:10px;
+      align-items:center;
+      padding:8px 12px;
+      border-radius:999px;
+      background:rgba(255,255,255,.04);
+      border:1px solid var(--line);
+      color:#ffd8b5;
+      font-size:.86rem;
+      font-weight:700;
+      width:max-content;
+    }
+    .eyebrow::before{
+      content:"";
+      width:8px;height:8px;border-radius:99px;background:var(--ok);
+      box-shadow:0 0 0 6px rgba(34,197,94,.12);
+    }
+    h1,h2,h3{
+      margin:0;
+      font-family:'Bebas Neue', cursive;
+      line-height:.95;
+      letter-spacing:.02em;
+      font-weight:400;
+    }
+    h1{
+      font-size:clamp(3.6rem, 8vw, 8rem);
+      margin-top:16px;
+      max-width:10ch;
+    }
+    .hero p{
+      color:var(--muted);
+      font-size:clamp(1rem, 1.5vw, 1.12rem);
+      max-width:62ch;
+    }
+    .hero-actions{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-top:28px;
+    }
+    .btn{
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      text-decoration:none;
+      border:none;
+      cursor:pointer;
+      border-radius:16px;
+      padding:14px 18px;
+      font-weight:800;
+      transition:transform .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+    .btn-primary{
+      color:#1a1108;
+      background:linear-gradient(135deg, #fde68a, var(--brand));
+      box-shadow:0 16px 36px rgba(249,115,22,.22);
+    }
+    .btn-secondary{
+      color:var(--ink);
+      background:rgba(255,255,255,.04);
+      border:1px solid var(--line);
+    }
+    .btn:hover{transform:translateY(-2px)}
+    .btn:active{transform:translateY(0) scale(.98)}
+
+    .hero-metrics{
+      display:grid;
+      grid-template-columns:repeat(3, 1fr);
+      gap:12px;
+      margin-top:24px;
+    }
+    .metric{
+      padding:14px;
+      border-radius:18px;
+      background:rgba(255,255,255,.04);
+      border:1px solid var(--line);
+    }
+    .metric strong{display:block; font-size:1.2rem}
+    .metric span{color:var(--muted); font-size:.9rem}
+
+    .hero-panel{
+      padding:18px;
+      display:grid;
+      grid-template-rows:auto 1fr auto;
+      gap:16px;
+      min-height:560px;
+    }
+    .panel-head{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      gap:12px;
+    }
+    .dots{display:flex; gap:8px}
+    .dots i{
+      width:10px;height:10px;border-radius:50%;
+      display:block;
+    }
+    .dots i:nth-child(1){background:#fb7185}
+    .dots i:nth-child(2){background:#facc15}
+    .dots i:nth-child(3){background:#4ade80}
+
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      font-size:.84rem;
+      color:var(--muted);
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+      padding:8px 10px;
+      border-radius:999px;
+    }
+
+    .flow{
+      display:grid;
+      gap:12px;
+      align-content:start;
+    }
+    .flow-step{
+      padding:16px;
+      border-radius:18px;
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.025));
+      border:1px solid var(--line);
+      display:grid;
+      grid-template-columns:auto 1fr;
+      gap:14px;
+      align-items:start;
+    }
+    .step-num{
+      width:42px;height:42px;border-radius:14px;
+      display:grid;place-items:center;
+      font-weight:800;
+      color:#2a1609;
+      background:linear-gradient(135deg, #fde68a, var(--brand));
+    }
+    .flow-step h3{font-size:2rem}
+    .flow-step p{margin:6px 0 0; color:var(--muted); font-size:.95rem}
+
+    .status-strip{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+    }
+    .status{
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.04);
+      font-size:.9rem;
+      color:var(--muted);
+    }
+
+    .section{
+      padding:24px 0;
+    }
+    .section-grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:24px;
+      align-items:start;
+    }
+    .section-panel{
+      padding:clamp(20px, 3vw, 32px);
+    }
+    .section-panel h2{
+      font-size:clamp(2.4rem, 5vw, 4.6rem);
+      margin-bottom:12px;
+    }
+    .section-panel p.lead{
+      color:var(--muted);
+      margin:0 0 22px;
+      max-width:58ch;
+    }
+
+    .checklist{
+      display:grid;
+      gap:12px;
+    }
+    .check{
+      display:grid;
+      grid-template-columns:auto 1fr;
+      gap:12px;
+      align-items:start;
+      padding:14px 0;
+      border-top:1px solid var(--line);
+    }
+    .check:first-child{border-top:none}
+    .check b{display:block; margin-bottom:4px}
+    .check span{
+      width:26px;height:26px;border-radius:9px;display:grid;place-items:center;
+      background:rgba(34,197,94,.14); color:#86efac; border:1px solid rgba(34,197,94,.25);
+      font-weight:900;
+      margin-top:2px;
+    }
+    .check p{margin:0; color:var(--muted)}
+
+    .code-shell{
+      padding:0;
+      overflow:hidden;
+    }
+    .code-head{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:14px 16px;
+      border-bottom:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+    }
+    .code-head strong{font-size:.95rem}
+    .code-wrap{
+      position:relative;
+    }
+    pre{
+      margin:0;
+      padding:22px;
+      overflow:auto;
+      background:
+        linear-gradient(180deg, rgba(0,0,0,.16), rgba(0,0,0,.08)),
+        #141110;
+      color:#f8f0e8;
+      font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size:.88rem;
+      line-height:1.65;
+      min-height:280px;
+    }
+    code .k{color:#f59e0b}
+    code .s{color:#86efac}
+    code .n{color:#93c5fd}
+    code .c{color:#a8a29e}
+    code .f{color:#fca5a5}
+
+    .copy-btn{
+      background:rgba(255,255,255,.05);
+      color:var(--ink);
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:9px 12px;
+      font-weight:700;
+      cursor:pointer;
+      transition:.2s ease;
+    }
+    .copy-btn:hover{background:rgba(255,255,255,.09)}
+    .copy-btn:active{transform:scale(.98)}
+
+    .two-col{
+      display:grid;
+      grid-template-columns:.9fr 1.1fr;
+      gap:24px;
+      align-items:start;
+    }
+
+    .mini-stack{
+      display:grid;
+      gap:16px;
+    }
+    .mini-panel{
+      padding:18px;
+      border:1px solid var(--line);
+      border-radius:20px;
+      background:linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+    }
+    .mini-panel h3{font-size:2rem; margin-bottom:8px}
+    .mini-panel p{margin:0; color:var(--muted)}
+
+    .footer{
+      padding:28px 0 60px;
+      color:var(--muted);
+    }
+    .footer-box{
+      border-top:1px solid var(--line);
+      padding-top:22px;
+      display:flex;
+      justify-content:space-between;
+      gap:18px;
+      flex-wrap:wrap;
+    }
+
+    .tagline{
+      color:#ffd8b5;
+      font-weight:700;
+      letter-spacing:.06em;
+      text-transform:uppercase;
+      font-size:.78rem;
+    }
+
+    @media (max-width: 1024px){
+      .hero-grid,
+      .section-grid,
+      .two-col{
+        grid-template-columns:1fr;
+      }
+      .hero-copy,
+      .hero-panel{min-height:auto}
+    }
+
+    @media (max-width: 720px){
+      .nav{padding:12px 0}
+      .nav-links{display:none}
+      .hero-metrics{grid-template-columns:1fr}
+      .hero-actions{flex-direction:column}
+      .btn{width:100%}
+      pre{font-size:.8rem}
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="container nav">
+      <a class="brand" href="#inicio">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <span>BOT MARMITARIA • WEBHOOK STACK</span>
+      </a>
+      <nav class="nav-links" aria-label="Navegação principal">
+        <a href="#visao">Visão geral</a>
+        <a href="#env">.env</a>
+        <a href="#server">server.js</a>
+        <a href="#bot">bot.js</a>
+        <a href="#sql">SQL</a>
+      </nav>
+      <a class="nav-cta" href="#server">Ver código pronto</a>
+    </div>
+  </header>
+
+  <main id="inicio">
+    <section class="hero">
+      <div class="container hero-grid">
+        <article class="hero-copy stagger">
+          <div>
+            <div class="eyebrow">Tudo configurado para Railway + webhook + banco + API</div>
+            <h1>SEU BOT JÁ FICA PRONTO PRA LER, SALVAR, RESPONDER E FINALIZAR</h1>
+            <p>
+              Abaixo está a estrutura completa para o seu projeto com <strong>PostgreSQL</strong>,
+              <strong>webhook</strong>, <strong>API de envio de mensagem</strong> e lógica do
+              <strong>cardápio com pedido</strong>. Eu deixei preparado para você só colar nos arquivos.
+            </p>
+            <div class="hero-actions">
+              <a class="btn btn-primary" href="#server">Abrir server.js</a>
+              <a class="btn btn-secondary" href="#bot">Abrir bot.js</a>
+            </div>
+          </div>
+
+          <div class="hero-metrics">
+            <div class="metric">
+              <strong>Webhook</strong>
+              <span>recebe evento, lê mensagem e confirma 200</span>
+            </div>
+            <div class="metric">
+              <strong>Banco</strong>
+              <span>consulta cliente e grava pedido</span>
+            </div>
+            <div class="metric">
+              <strong>Resposta</strong>
+              <span>envia menu, pedido e fluxo do atendimento</span>
+            </div>
+          </div>
+        </article>
+
+        <aside class="hero-panel stagger" aria-label="Fluxo do sistema">
+          <div class="panel-head">
+            <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+            <div class="chip">Railway • Render • Evolution • PostgreSQL</div>
+          </div>
+
+          <div class="flow">
+            <div class="flow-step">
+              <div class="step-num">1</div>
+              <div>
+                <h3>Webhook entra</h3>
+                <p>O server recebe <strong>messages.upsert</strong>, identifica telefone, texto e nome.</p>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="step-num">2</div>
+              <div>
+                <h3>Bot processa</h3>
+                <p>O bot interpreta saudação, cardápio, pedido, saldo e atendimento humano.</p>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="step-num">3</div>
+              <div>
+                <h3>Banco registra</h3>
+                <p>Cliente pode ser buscado e o pedido salvo com status <strong>pending</strong>.</p>
+              </div>
+            </div>
+            <div class="flow-step">
+              <div class="step-num">4</div>
+              <div>
+                <h3>API responde</h3>
+                <p>A mensagem é enviada para o WhatsApp pela sua API configurada no .env.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="status-strip">
+            <div class="status">POST /api/bot/webhook</div>
+            <div class="status">DATABASE_URL</div>
+            <div class="status">API_URL</div>
+            <div class="status">API_KEY</div>
+          </div>
+        </aside>
       </div>
-    `;
+    </section>
+
+    <section id="visao" class="section">
+      <div class="container section-grid">
+        <article class="section-panel reveal">
+          <div class="tagline">Como vai ficar</div>
+          <h2>ESTRUTURA COMPLETA DO PROJETO</h2>
+          <p class="lead">
+            Aqui está o formato que vou te deixar configurado. Você pode usar exatamente esses nomes de arquivo.
+          </p>
+          <div class="checklist">
+            <div class="check">
+              <span>✓</span>
+              <div>
+                <b>server.js</b>
+                <p>Recebe webhook, conecta no PostgreSQL, injeta o banco no bot e chama <strong>processar()</strong>.</p>
+              </div>
+            </div>
+            <div class="check">
+              <span>✓</span>
+              <div>
+                <b>bot.js</b>
+                <p>Contém cardápio, busca cliente, salva pedido e envia resposta pela API configurada.</p>
+              </div>
+            </div>
+            <div class="check">
+              <span>✓</span>
+              <div>
+                <b>.env</b>
+                <p>Guarda URL do banco, URL da API, chave, instância e chave PIX sem expor nada no código.</p>
+              </div>
+            </div>
+            <div class="check">
+              <span>✓</span>
+              <div>
+                <b>SQL</b>
+                <p>Cria as tabelas de clientes e pedidos para o fluxo funcionar desde já.</p>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <div class="mini-stack reveal">
+          <div class="mini-panel">
+            <h3>IMPORTANTE</h3>
+            <p>
+              Eu deixei o envio preparado com <strong>axios</strong>. Se sua API for Evolution, ajuste apenas a rota
+              exata do envio conforme sua instância.
+            </p>
+          </div>
+          <div class="mini-panel">
+            <h3>WEBHOOK</h3>
+            <p>
+              Configure no painel da sua API o endpoint público:
+              <strong>/api/bot/webhook</strong>
+            </p>
+          </div>
+          <div class="mini-panel">
+            <h3>RAILWAY</h3>
+            <p>
+              Adicione todas as variáveis do <strong>.env</strong> no painel da Railway e defina o start com
+              <strong>node server.js</strong>.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="env" class="section">
+      <div class="container">
+        <div class="code-shell reveal">
+          <div class="code-head">
+            <strong>.env</strong>
+            <button class="copy-btn" data-copy="env-code">Copiar</button>
+          </div>
+          <div class="code-wrap">
+<pre><code id="env-code">PORT=1000
+DATABASE_URL=postgresql://USUARIO:SENHA@HOST:PORTA/NOME_DO_BANCO
+
+<span class="c"># API de envio de mensagem</span>
+API_URL=https://SUA-API-AQUI
+API_INSTANCE=sua-instancia
+API_KEY=sua-chave-api
+
+<span class="c"># chave pix</span>
+CHAVE_PIX=seu-email-ou-chave-pix
+
+<span class="c"># url pública do webhook</span>
+WEBHOOK_URL=https://seu-app.up.railway.app/api/bot/webhook</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="server" class="section">
+      <div class="container">
+        <div class="code-shell reveal">
+          <div class="code-head">
+            <strong>server.js</strong>
+            <button class="copy-btn" data-copy="server-code">Copiar</button>
+          </div>
+          <div class="code-wrap">
+<pre><code id="server-code"><span class="k">require</span>(<span class="s">'dotenv'</span>).<span class="f">config</span>();
+<span class="k">const</span> <span class="n">express</span> = <span class="k">require</span>(<span class="s">'express'</span>);
+<span class="k">const</span> { <span class="n">Pool</span> } = <span class="k">require</span>(<span class="s">'pg'</span>);
+<span class="k">const</span> { <span class="n">processar</span>, <span class="n">setBanco</span> } = <span class="k">require</span>(<span class="s">'./bot'</span>);
+
+<span class="k">const</span> <span class="n">app</span> = <span class="n">express</span>();
+
+<span class="c">// log de tudo</span>
+<span class="n">app</span>.<span class="f">use</span>((<span class="n">req</span>, <span class="n">res</span>, <span class="n">next</span>) =&gt; {
+  <span class="n">console</span>.<span class="f">log</span>(<span class="s">`📥 ${req.method} ${req.path}`</span>);
+  <span class="f">next</span>();
+});
+
+<span class="n">app</span>.<span class="f">use</span>(<span class="n">express</span>.<span class="f">json</span>({ <span class="n">limit</span>: <span class="s">'5mb'</span> }));
+
+<span class="c">// banco</span>
+<span class="k">const</span> <span class="n">pool</span> = <span class="k">new</span> <span class="n">Pool</span>({
+  <span class="n">connectionString</span>: <span class="n">process</span>.<span class="n">env</span>.<span class="n">DATABASE_URL</span>,
+  <span class="n">ssl</span>: { <span class="n">rejectUnauthorized</span>: <span class="k">false</span> }
+});
+
+<span class="k">async</span> <span class="k">function</span> <span class="f">iniciar</span>() {
+  <span class="k">try</span> {
+    <span class="k">const</span> <span class="n">client</span> = <span class="k">await</span> <span class="n">pool</span>.<span class="f">connect</span>();
+    <span class="n">client</span>.<span class="f">release</span>();
+    <span class="n">console</span>.<span class="f">log</span>(<span class="s">'✅ BANCO CONECTADO'</span>);
+    <span class="f">setBanco</span>(<span class="n">pool</span>);
+  } <span class="k">catch</span> (<span class="n">e</span>) {
+    <span class="n">console</span>.<span class="f">error</span>(<span class="s">'❌ ERRO AO CONECTAR NO BANCO:'</span>, <span class="n">e</span>.<span class="n">message</span>);
   }
 }
+<span class="f">iniciar</span>();
 
-// Renderizar categorias
-function renderCategorias() {
-  const container = document.getElementById('categories');
-  container.innerHTML = '';
+<span class="c">// rota health</span>
+<span class="n">app</span>.<span class="f">get</span>(<span class="s">'/'</span>, (<span class="n">req</span>, <span class="n">res</span>) =&gt; {
+  <span class="n">res</span>.<span class="f">status</span>(200).<span class="f">json</span>({
+    <span class="n">ok</span>: <span class="k">true</span>,
+    <span class="n">service</span>: <span class="s">'bot-whatsapp'</span>,
+    <span class="n">webhook</span>: <span class="s">'/api/bot/webhook'</span>
+  });
+});
 
-  const btnTodos = document.createElement('button');
-  btnTodos.className = 'cat-btn' + (catAtiva === '' ? ' active' : '');
-  btnTodos.textContent = 'Todos';
-  btnTodos.dataset.cat = '';
-  btnTodos.onclick = () => {
-    catAtiva = '';
-    renderCategorias();
-    renderItens();
-  };
-  container.appendChild(btnTodos);
+<span class="c">// webhook</span>
+<span class="n">app</span>.<span class="f">post</span>(<span class="s">'/api/bot/webhook'</span>, <span class="k">async</span> (<span class="n">req</span>, <span class="n">res</span>) =&gt; {
+  <span class="c">// responde rápido pro serviço não reenviar</span>
+  <span class="n">res</span>.<span class="f">status</span>(200).<span class="f">json</span>({ <span class="n">ok</span>: <span class="k">true</span> });
 
-  categorias.forEach(cat => {
-    const btn = document.createElement('button');
-    btn.className = 'cat-btn' + (catAtiva === cat.id ? ' active' : '');
-    btn.textContent = cat.name;
-    btn.dataset.cat = cat.id;
-    btn.onclick = () => {
-      catAtiva = cat.id;
-      renderCategorias();
-      renderItens();
+  <span class="k">try</span> {
+    <span class="k">const</span> { <span class="n">event</span>, <span class="n">data</span> } = <span class="n">req</span>.<span class="n">body</span>;
+    <span class="n">console</span>.<span class="f">log</span>(<span class="s">'📩 EVENTO:'</span>, <span class="n">event</span>);
+
+    <span class="k">if</span> (<span class="n">event</span> !== <span class="s">'messages.upsert'</span>) <span class="k">return</span>;
+
+    <span class="k">const</span> <span class="n">msg</span> = <span class="n">data</span>?.<span class="n">messages</span>?.[0];
+    <span class="k">if</span> (!<span class="n">msg</span> || <span class="n">msg</span>.<span class="n">key</span>?.<span class="n">fromMe</span> || <span class="n">msg</span>.<span class="n">fromMe</span>) <span class="k">return</span>;
+
+    <span class="k">const</span> <span class="n">telefone</span> = <span class="n">msg</span>.<span class="n">key</span>?.<span class="n">remoteJid</span>?.<span class="f">replace</span>(<span class="s">'@s.whatsapp.net'</span>, <span class="s">''</span>)?.<span class="f">replace</span>(<span class="s">'@g.us'</span>, <span class="s">''</span>);
+    <span class="k">const</span> <span class="n">texto</span> =
+      <span class="n">msg</span>.<span class="n">message</span>?.<span class="n">conversation</span> ||
+      <span class="n">msg</span>.<span class="n">message</span>?.<span class="n">extendedTextMessage</span>?.<span class="n">text</span> ||
+      <span class="n">msg</span>.<span class="n">message</span>?.<span class="n">imageMessage</span>?.<span class="n">caption</span> ||
+      <span class="s">''</span>;
+
+    <span class="k">const</span> <span class="n">pushName</span> = <span class="n">msg</span>.<span class="n">pushName</span> || <span class="s">'Cliente'</span>;
+
+    <span class="n">console</span>.<span class="f">log</span>(<span class="s">`📞 ${telefone} | "${texto}"`</span>);
+
+    <span class="k">if</span> (<span class="n">telefone</span> && <span class="n">texto</span>) {
+      <span class="k">await</span> <span class="f">processar</span>(<span class="n">telefone</span>, <span class="n">texto</span>, <span class="n">pushName</span>);
+    }
+  } <span class="k">catch</span> (<span class="n">e</span>) {
+    <span class="n">console</span>.<span class="f">error</span>(<span class="s">'❌ ERRO NO WEBHOOK:'</span>, <span class="n">e</span>.<span class="n">message</span>);
+  }
+});
+
+<span class="k">const</span> <span class="n">PORTA</span> = <span class="n">process</span>.<span class="n">env</span>.<span class="n">PORT</span> || 1000;
+<span class="n">app</span>.<span class="f">listen</span>(<span class="n">PORTA</span>, () =&gt; {
+  <span class="n">console</span>.<span class="f">log</span>(<span class="s">'========================================'</span>);
+  <span class="n">console</span>.<span class="f">log</span>(<span class="s">`🚀 RODANDO NA PORTA ${PORTA}`</span>);
+  <span class="n">console</span>.<span class="f">log</span>(<span class="s">`🔗 WEBHOOK: ${process.env.WEBHOOK_URL || 'configure WEBHOOK_URL no .env'}`</span>);
+  <span class="n">console</span>.<span class="f">log</span>(<span class="s">'========================================'</span>);
+});</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="bot" class="section">
+      <div class="container">
+        <div class="code-shell reveal">
+          <div class="code-head">
+            <strong>bot.js</strong>
+            <button class="copy-btn" data-copy="bot-code">Copiar</button>
+          </div>
+          <div class="code-wrap">
+<pre><code id="bot-code"><span class="k">const</span> <span class="n">QRCode</span> = <span class="k">require</span>(<span class="s">'qrcode'</span>);
+<span class="k">const</span> <span class="n">axios</span> = <span class="k">require</span>(<span class="s">'axios'</span>);
+
+<span class="k">let</span> <span class="n">pool</span> = <span class="k">null</span>;
+
+<span class="k">function</span> <span class="f">setBanco</span>(<span class="n">conexao</span>) {
+  <span class="n">pool</span> = <span class="n">conexao</span>;
+  <span class="n">console</span>.<span class="f">log</span>(<span class="s">'✅ [bot.js] Banco conectado'</span>);
+}
+
+<span class="k">const</span> <span class="n">cardapio</span> = {
+  <span class="s">'1'</span>: { <span class="n">nome</span>: <span class="s">'Pequena'</span>, <span class="n">valor</span>: 15.00 },
+  <span class="s">'2'</span>: { <span class="n">nome</span>: <span class="s">'Média'</span>, <span class="n">valor</span>: 18.00 },
+  <span class="s">'3'</span>: { <span class="n">nome</span>: <span class="s">'Grande'</span>, <span class="n">valor</span>: 22.00 }
+};
+
+<span class="k">async</span> <span class="k">function</span> <span class="f">enviar</span>(<span class="n">telefone</span>, <span class="n">texto</span>) {
+  <span class="k">try</span> {
+    <span class="k">const</span> <span class="n">url</span> = <span class="s">`${process.env.API_URL}/message/sendText/${process.env.API_INSTANCE}`</span>;
+
+    <span class="k">const</span> <span class="n">body</span> = {
+      <span class="n">number</span>: <span class="n">telefone</span>,
+      <span class="n">text</span>: <span class="n">texto</span>
     };
-    container.appendChild(btn);
-  });
-}
 
-// Renderizar itens filtrados
-function renderItens() {
-  const container = document.getElementById('items');
-  container.innerHTML = '';
-
-  const itensFiltrados = catAtiva
-    ? itens.filter(item => item.categoryId === catAtiva)
-    : itens;
-
-  if (itensFiltrados.length === 0) {
-    container.innerHTML = '<p style="text-align:center;color:#757575;">Nenhum item encontrado.</p>';
-    return;
-  }
-
-  itensFiltrados.forEach(item => {
-    const card = document.createElement('div');
-    card.className = 'item-card';
-
-    card.innerHTML = `
-      <h3>${item.name}</h3>
-      <p>${item.description || ''}</p>
-      <div class="item-footer">
-        <span class="price">R$ ${item.price.toFixed(2).replace('.', ',')}</span>
-        <button class="add-btn" onclick="adicionarAoCarrinho(${item.id})">Adicionar</button>
-      </div>
-    `;
-
-    container.appendChild(card);
-  });
-}
-
-// Adicionar item ao carrinho
-function adicionarAoCarrinho(itemId) {
-  const item = itens.find(i => i.id === itemId);
-  if (!item) return;
-
-  const existente = carrinho.find(i => i.id === itemId);
-  if (existente) {
-    existente.quantidade++;
-  } else {
-    carrinho.push({ ...item, quantidade: 1 });
-  }
-  atualizarCarrinho();
-}
-
-// Atualizar carrinho e interface
-function atualizarCarrinho() {
-  const cartBar = document.getElementById('cartBar');
-  const cartCount = document.getElementById('cartCount');
-  const cartTotal = document.getElementById('cartTotal');
-
-  if (carrinho.length === 0) {
-    cartBar.style.display = 'none';
-    return;
-  }
-
-  cartBar.style.display = 'flex';
-
-  let totalItens = 0;
-  let totalPreco = 0;
-
-  carrinho.forEach(item => {
-    totalItens += item.quantidade;
-    totalPreco += item.price * item.quantidade;
-  });
-
-  cartCount.textContent = `${totalItens} item${totalItens > 1 ? 's' : ''}`;
-  cartTotal.textContent = `R$ ${totalPreco.toFixed(2).replace('.', ',')}`;
-}
-
-// Abrir modal de finalização
-function abrirModal() {
-  if (carrinho.length === 0) return alert('Seu carrinho está vazio.');
-
-  const resumo = document.getElementById('resumoPedido');
-  resumo.innerHTML = '';
-
-  carrinho.forEach(item => {
-    const div = document.createElement('div');
-    div.className = 'resumo-item';
-    div.innerHTML = `
-      <span>${item.name} x${item.quantidade}</span>
-      <span>R$ ${(item.price * item.quantidade).toFixed(2).replace('.', ',')}</span>
-    `;
-    resumo.appendChild(div);
-  });
-
-  const total = carrinho.reduce((acc, item) => acc + item.price * item.quantidade, 0);
-  const divTotal = document.createElement('div');
-  divTotal.className = 'resumo-total';
-  divTotal.textContent = `Total: R$ ${total.toFixed(2).replace('.', ',')}`;
-  resumo.appendChild(divTotal);
-
-  document.getElementById('checkoutModal').classList.add('open');
-}
-
-// Fechar modal
-function fecharModal() {
-  document.getElementById('checkoutModal').classList.remove('open');
-}
-
-// Enviar pedido para backend
-async function enviarPedido() {
-  const nome = document.getElementById('nome').value.trim();
-  const telefone = document.getElementById('telefone').value.trim();
-  const endereco = document.getElementById('endereco').value.trim();
-  const pagamento = document.getElementById('pagamento').value;
-  const observacoes = document.getElementById('observacoes').value.trim();
-
-  if (!nome || !telefone || !pagamento) {
-    alert('Por favor, preencha os campos obrigatórios: nome, telefone e forma de pagamento.');
-    return;
-  }
-
-  const pedido = {
-    cliente: { nome, telefone, endereco },
-    pagamento,
-    observacoes,
-    itens: carrinho.map(({ id, quantidade }) => ({ id, quantidade })),
-    total: carrinho.reduce((acc, item) => acc + item.price * item.quantidade, 0)
-  };
-
-  try {
-    const res = await fetch('/api/orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(pedido)
+    <span class="k">await</span> <span class="n">axios</span>.<span class="f">post</span>(<span class="n">url</span>, <span class="n">body</span>, {
+      <span class="n">headers</span>: {
+        <span class="n">apikey</span>: <span class="n">process</span>.<span class="n">env</span>.<span class="n">API_KEY</span>,
+        <span class="s">'Content-Type'</span>: <span class="s">'application/json'</span>
+      }
     });
 
-    if (!res.ok) throw new Error('Erro ao enviar pedido.');
-
-    alert('Pedido enviado com sucesso! Obrigado pela preferência.');
-    carrinho = [];
-    atualizarCarrinho();
-    fecharModal();
-    // Limpar campos
-    document.getElementById('nome').value = '';
-    document.getElementById('telefone').value = '';
-    document.getElementById('endereco').value = '';
-    document.getElementById('pagamento').value = '';
-    document.getElementById('observacoes').value = '';
-  } catch (e) {
-    alert('Erro ao enviar pedido. Tente novamente.');
-    console.error(e);
+    <span class="n">console</span>.<span class="f">log</span>(<span class="s">`✅ Mensagem enviada para ${telefone}`</span>);
+    <span class="k">return</span> <span class="k">true</span>;
+  } <span class="k">catch</span> (<span class="n">e</span>) {
+    <span class="n">console</span>.<span class="f">error</span>(<span class="s">'❌ Erro ao enviar mensagem:'</span>, <span class="n">e</span>.<span class="n">response</span>?.<span class="n">data</span> || <span class="n">e</span>.<span class="n">message</span>);
+    <span class="k">return</span> <span class="k">false</span>;
   }
 }
 
-// Inicializar
-carregarDados();
+<span class="k">async</span> <span class="k">function</span> <span class="f">buscarCliente</span>(<span class="n">telefone</span>) {
+  <span class="k">if</span> (!<span class="n">pool</span>) <span class="k">return</span> <span class="k">null</span>;
+  <span class="k">try</span> {
+    <span class="k">const</span> <span class="n">res</span> = <span class="k">await</span> <span class="n">pool</span>.<span class="f">query</span>(
+      <span class="s">'SELECT * FROM clients WHERE phone = $1 LIMIT 1'</span>,
+      [<span class="n">telefone</span>]
+    );
+    <span class="k">return</span> <span class="n">res</span>.<span class="n">rows</span>[0] || <span class="k">null</span>;
+  } <span class="k">catch</span> (<span class="n">e</span>) {
+    <span class="n">console</span>.<span class="f">error</span>(<span class="s">'❌ Erro ao buscar cliente:'</span>, <span class="n">e</span>.<span class="n">message</span>);
+    <span class="k">return</span> <span class="k">null</span>;
+  }
+}
+
+<span class="k">async</span> <span class="k">function</span> <span class="f">salvarPedido</span>(<span class="n">telefone</span>, <span class="n">nome</span>, <span class="n">item</span>, <span class="n">preco</span>) {
+  <span class="k">if</span> (!<span class="n">pool</span>) <span class="k">return</span> <span class="k">false</span>;
+  <span class="k">try</span> {
+    <span class="k">await</span> <span class="n">pool</span>.<span class="f">query</span>(
+      <span class="s">'INSERT INTO orders (phone, name, item, price, status) VALUES ($1, $2, $3, $4, $5)'</span>,
+      [<span class="n">telefone</span>, <span class="n">nome</span>, <span class="n">item</span>, <span class="n">preco</span>, <span class="s">'pending'</span>]
+    );
+    <span class="n">console</span>.<span class="f">log</span>(<span class="s">`✅ Pedido salvo para ${telefone}: ${item}`</span>);
+    <span class="k">return</span> <span class="k">true</span>;
+  } <span class="k">catch</span> (<span class="n">e</span>) {
+    <span class="n">console</span>.<span class="f">error</span>(<span class="s">'❌ Erro ao salvar pedido:'</span>, <span class="n">e</span>.<span class="n">message</span>);
+    <span class="k">return</span> <span class="k">false</span>;
+  }
+}
+
+<span class="k">function</span> <span class="f">gerarPayloadPix</span>(<span class="n">chavePix</span>, <span class="n">valor</span>, <span class="n">descricao</span>) {
+  <span class="c">// simplificado. se quiser depois te passo o oficial</span>
+  <span class="k">return</span> <span class="s">`PIX|CHAVE:${chavePix}|VALOR:${valor.toFixed(2)}|DESC:${descricao}`</span>;
+}
+
+<span class="k">async</span> <span class="k">function</span> <span class="f">gerarQrCodeBase64</span>(<span class="n">payload</span>) {
+  <span class="k">try</span> {
+    <span class="k">return</span> <span class="k">await</span> <span class="n">QRCode</span>.<span class="f">toDataURL</span>(<span class="n">payload</span>);
+  } <span class="k">catch</span> (<span class="n">e</span>) {
+    <span class="n">console</span>.<span class="f">error</span>(<span class="s">'❌ Erro ao gerar QR Code:'</span>, <span class="n">e</span>.<span class="n">message</span>);
+    <span class="k">return</span> <span class="k">null</span>;
+  }
+}
+
+<span class="k">async</span> <span class="k">function</span> <span class="f">processar</span>(<span class="n">telefone</span>, <span class="n">texto</span>, <span class="n">pushName</span>) {
+  <span class="k">const</span> <span class="n">t</span> = <span class="n">String</span>(<span class="n">texto</span> || <span class="s">''</span>).<span class="f">trim</span>().<span class="f">toLowerCase</span>();
+  <span class="k">if</span> (!<span class="n">t</span>) <span class="k">return</span>;
+
+  <span class="k">const</span> <span class="n">cliente</span> = <span class="k">await</span> <span class="f">buscarCliente</span>(<span class="n">telefone</span>);
+  <span class="k">const</span> <span class="n">nome</span> = <span class="n">cliente</span>?.<span class="n">name</span> || <span class="n">pushName</span> || <span class="s">'amigo(a)'</span>;
+
+  <span class="n">console</span>.<span class="f">log</span>(<span class="s">`💬 ${nome} diz: "${texto}"`</span>);
+
+  <span class="k">try</span> {
+    <span class="k">if</span> ([<span class="s">'oi'</span>, <span class="s">'olá'</span>, <span class="s">'ola'</span>, <span class="s">'bom dia'</span>, <span class="s">'boa tarde'</span>, <span class="s">'boa noite'</span>].<span class="f">includes</span>(<span class="n">t</span>)) {
+      <span class="k">await</span> <span class="f">enviar</span>(<span class="n">telefone</span>, <span class="s">`Olá, ${nome}! 😋\n\nDigite *cardápio* para ver os pratos.`</span>);
+    }
+
+    <span class="k">else if</span> ([<span class="s">'cardápio'</span>, <span class="s">'cardapio'</span>, <span class="s">'menu'</span>].<span class="f">includes</span>(<span class="n">t</span>)) {
+      <span class="k">let</span> <span class="n">textoCardapio</span> = <span class="s">`🍽️ CARDÁPIO — ${nome}\n\n`</span>;
+      <span class="k">for</span> (<span class="k">const</span> [<span class="n">key</span>, <span class="n">prato</span>] <span class="k">of</span> <span class="n">Object</span>.<span class="f">entries</span>(<span class="n">cardapio</span>)) {
+        <span class="n">textoCardapio</span> += <span class="s">`${key}️⃣ ${prato.nome} — R$ ${prato.valor.toFixed(2)}\n`</span>;
+      }
+      <span class="n">textoCardapio</span> += <span class="s">`\nDigite *pedido 1*, *pedido 2* ou *pedido 3*.`</span>;
+      <span class="k">await</span> <span class="f">enviar</span>(<span class="n">telefone</span>, <span class="n">textoCardapio</span>);
+    }
+
+    <span class="k">else if</span> (<span class="n">t</span>.<span class="f">startsWith</span>(<span class="s">'pedido '</span>)) {
+      <span class="k">const</span> <span class="n">num</span> = <span class="n">t</span>.<span class="f">split</span>(<span class="s">' '</span>)[1];
+      <span class="k">const</span> <span class="n">prato</span> = <span class="n">cardapio</span>[<span class="n">num</span>];
+
+      <span class="k">if</span> (!<span class="n">prato</span>) {
+        <span class="k">await</span> <span class="f">enviar</span>(<span class="n">telefone</span>, <span class="s">`Não encontrei a opção ${num}. Digite *cardápio* para ver as opções.`</span>);
+        <span class="k">return</span>;
+      }
+
+      <span class="k">const</span> <span class="n">pedidoSalvo</span> = <span class="k">await</span> <span class="f">salvarPedido</span>(<span class="n">telefone</span>, <span class="n">nome</span>, <span class="n">prato</span>.<span class="n">nome</span>, <span class="n">prato</span>.<span class="n">valor</span>);
+      <span class="k">if</span> (!<span class="n">pedidoSalvo</span>) {
+        <span class="k">await</span> <span class="f">enviar</span>(<span class="n">telefone</span>, <span class="s">'Erro ao registrar seu pedido. Tente novamente.'</span>);
+        <span class="k">return</span>;
+      }
+
+      <span class="k">const</span> <span class="n">descricao</span> = <span class="s">`Pedido ${prato.nome} para ${nome}`</span>;
+      <span class="k">const</span> <span class="n">payload</span> = <span class="f">gerarPayloadPix</span>(<span class="n">process</span>.<span class="n">env</span>.<span class="n">CHAVE_PIX</span>, <span class="n">prato</span>.<span class="n">valor</span>, <span class="n">descricao</span>);
+      <span class="k">const</span> <span class="n">qrCodeBase64</span> = <span class="k">await</span> <span class="f">gerarQrCodeBase64</span>(<span class="n">payload</span>);
+
+      <span class="k">let</span> <span class="n">mensagem</span> =
+        <span class="s">`✅ Pedido recebido, ${nome}!\n`</span> +
+        <span class="s">`🍛 Item: ${prato.nome}\n`</span> +
+        <span class="s">`💰 Valor: R$ ${prato.valor.toFixed(2)}\n\n`</span> +
+        <span class="s">`🔑 PIX copia e cola:\n${payload}`</span>;
+
+      <span class="k">if</span> (<span class="n">qrCodeBase64</span>) {
+        <span class="n">mensagem</span> += <span class="s">`\n\n🧾 QR Code base64:\n${qrCodeBase64}`</span>;
+      }
+
+      <span class="k">await</span> <span class="f">enviar</span>(<span class="n">telefone</span>, <span class="n">mensagem</span>);
+    }
+
+    <span class="k">else if</span> ([<span class="s">'4'</span>, <span class="s">'fiado'</span>, <span class="s">'saldo'</span>].<span class="f">includes</span>(<span class="n">t</span>)) {
+      <span class="k">if</span> (<span class="n">cliente</span>) {
+        <span class="k">await</span> <span class="f">enviar</span>(<span class="n">telefone</span>, <span class="s">`${nome}, seu saldo atual é: R$ ${Number(cliente.balance || 0).toFixed(2)} 📋`</span>);
+      } <span class="k">else</span> {
+        <span class="k">await</span> <span class="f">enviar</span>(<span class="n">telefone</span>, <span class="s">'Não encontrei seu cadastro. Fale com o atendente.'</span>);
+      }
+    }
+
+    <span class="k">else if</span> ([<span class="s">'0'</span>, <span class="s">'atendente'</span>].<span class="f">includes</span>(<span class="n">t</span>)) {
+      <span class="k">await</span> <span class="f">enviar</span>(<span class="n">telefone</span>, <span class="s">`Certo, ${nome}. Estou chamando o atendente. 📞`</span>);
+    }
+
+    <span class="k">else</span> {
+      <span class="k">await</span> <span class="f">enviar</span>(<span class="n">telefone</span>, <span class="s">`Recebi sua mensagem, ${nome}. ✅\nDigite *cardápio* para continuar.`</span>);
+    }
+  } <span class="k">catch</span> (<span class="n">error</span>) {
+    <span class="n">console</span>.<span class="f">error</span>(<span class="s">'❌ Erro no processar:'</span>, <span class="n">error</span>.<span class="n">message</span>);
+    <span class="k">try</span> {
+      <span class="k">await</span> <span class="f">enviar</span>(<span class="n">telefone</span>, <span class="s">'Ocorreu um erro ao processar sua mensagem. Tente novamente.'</span>);
+    } <span class="k">catch</span> {}
+  }
+}
+
+<span class="k">module</span>.<span class="n">exports</span> = { <span class="n">processar</span>, <span class="n">setBanco</span> };
+<span class="n">console</span>.<span class="f">log</span>(<span class="s">'🤖 bot.js carregado com webhook, api e banco ✅'</span>);</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="sql" class="section">
+      <div class="container two-col">
+        <article class="section-panel reveal">
+          <div class="tagline">Banco pronto</div>
+          <h2>SQL DAS TABELAS</h2>
+          <p class="lead">
+            Execute isso no PostgreSQL da Railway para deixar o bot já com estrutura mínima funcionando.
+          </p>
+          <div class="checklist">
+            <div class="check">
+              <span>✓</span>
+              <div>
+                <b>clients</b>
+                <p>Guarda telefone, nome e saldo do cliente.</p>
+              </div>
+            </div>
+            <div class="check">
+              <span>✓</span>
+              <div>
+                <b>orders</b>
+                <p>Guarda cada pedido recebido pelo WhatsApp com status atual.</p>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <div class="code-shell reveal">
+          <div class="code-head">
+            <strong>schema.sql</strong>
+            <button class="copy-btn" data-copy="sql-code">Copiar</button>
+          </div>
+          <div class="code-wrap">
+<pre><code id="sql-code">CREATE TABLE IF NOT EXISTS clients (
+  id SERIAL PRIMARY KEY,
+  phone VARCHAR(30) UNIQUE NOT NULL,
+  name VARCHAR(120),
+  balance NUMERIC(10,2) DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS orders (
+  id SERIAL PRIMARY KEY,
+  phone VARCHAR(30) NOT NULL,
+  name VARCHAR(120),
+  item VARCHAR(120) NOT NULL,
+  price NUMERIC(10,2) NOT NULL,
+  status VARCHAR(30) DEFAULT 'pending',
+  created_at TIMESTAMP DEFAULT NOW()
+);</code></pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container section-grid">
+        <article class="section-panel reveal">
+          <div class="tagline">Dependências</div>
+          <h2>NPM INSTALL</h2>
+          <p class="lead">
+            Se ainda não instalou tudo, use este comando:
+          </p>
+          <div class="code-shell">
+            <div class="code-head">
+              <strong>terminal</strong>
+              <button class="copy-btn" data-copy="npm-code">Copiar</button>
+            </div>
+<pre><code id="npm-code">npm install express pg dotenv axios qrcode</code></pre>
+          </div>
+        </article>
+
+        <article class="section-panel reveal">
+          <div class="tagline">Start do projeto</div>
+          <h2>COMO RODAR</h2>
+          <p class="lead">
+            No Railway, defina o comando de start:
+          </p>
+          <div class="code-shell">
+            <div class="code-head">
+              <strong>start</strong>
+              <button class="copy-btn" data-copy="start-code">Copiar</button>
+            </div>
+<pre><code id="start-code">node server.js</code></pre>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-box">
+      <div>Bot Marmitaria • stack pronta com webhook, API e PostgreSQL</div>
+      <div>Se quiser, o próximo passo é eu te mandar a <strong>versão com PIX oficial EMV</strong>.</div>
+    </div>
+  </footer>
+
+  <script>
+    const revealEls = document.querySelectorAll('.reveal');
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if(entry.isIntersecting){
+          entry.target.classList.add('visible');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: .14 });
+
+    revealEls.forEach(el => io.observe(el));
+
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-copy');
+        const text = document.getElementById(id).innerText;
+        try{
+          await navigator.clipboard.writeText(text);
+          const old = btn.textContent;
+          btn.textContent = 'Copiado';
+          setTimeout(() => btn.textContent = old, 1400);
+        }catch(e){
+          btn.textContent = 'Erro';
+          setTimeout(() => btn.textContent = 'Copiar', 1400);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
