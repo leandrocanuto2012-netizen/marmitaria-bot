@@ -60,7 +60,7 @@ app.post(['/api/bot/webhook', '/api/bot/webhook'], async (req, res) => {
 });
 
   res.send('🚀 ONLINE! Webhook: /api/bot/webhook ✅');
-});
+);
 
 const PORTA = process.env.PORT || 1000;
 app.listen(PORTA, () => ({
