@@ -1,8 +1,4 @@
-const axios = require('axios');
-
-const EVO_URL = process.env.EVO_URL;
-const EVO_KEY = process.env.EVO_KEY;
-const EVO_INSTANCE = process.env.EVO_INSTANCE || 'marmitaria';
+const QRCode = require('qrcode');
 
 let pool = null;
 function setBanco(conexao) {
@@ -10,42 +6,35 @@ function setBanco(conexao) {
   console.log('✅ [bot.js] Banco conectado');
 }
 
-// ENVIAR MENSAGEM
+// Função simulada para enviar mensagem (substitua pela sua API real)
 async function enviar(telefone, texto) {
-  try {
-    await axios.post(
-      `${EVO_URL}/message/sendText/${EVO_INSTANCE}`,
-      { number: telefone, text: texto },
-      { headers: { apikey: EVO_KEY } }
-    );
-    console.log('✅ RESPOSTA ENVIADA →', telefone);
-    return true;
-  } catch (e) {
-    console.error('❌ ERRO ENVIO:', e.response?.data || e.message);
-    return false;
-  }
+  console.log(`Mensagem para ${telefone}:`);
+  console.log(texto);
+  return true;
 }
 
-// BUSCAR CLIENTE
-async function buscarCliente(telefone) {
-  if (!pool) return null;
+// Função para gerar payload PIX simples (exemplo básico)
+function gerarPayloadPix(chavePix, valor, descricao) {
+  // Para produção, use biblioteca oficial do Banco Central para gerar payload correto
+  // Aqui um payload simplificado para exemplo
+  const valorStr = valor.toFixed(2).replace('.', ',');
+  return `00020126580014BR.GOV.BCB.PIX0136${chavePix}5204000053039865405${(valor*100).toFixed(0).padStart(4,'0')}5802BR5925Marmitaria Exemplo6009Sao Paulo61080540900062070503***6304`;
+}
+
+// Gerar QR Code base64 a partir do payload
+async function gerarQrCodeBase64(payload) {
   try {
-    const res = await pool.query(
-      'SELECT name, balance FROM customers WHERE phone = $1 LIMIT 1',
-      [telefone]
-    );
-    return res.rows[0] || null;
+    return await QRCode.toDataURL(payload);
   } catch (e) {
-    console.error('❌ ERRO BUSCA:', e.message);
+    console.error('Erro ao gerar QR Code:', e);
     return null;
   }
 }
 
-// LÓGICA PRINCIPAL
+// Lógica principal do bot
 async function processar(telefone, texto, pushName) {
   const t = String(texto || '').trim().toLowerCase();
-  const cliente = await buscarCliente(telefone);
-  const nome = cliente?.name || pushName || 'amigo(a)';
+  const nome = pushName || 'amigo(a)';
 
   console.log(`💬 ${nome} diz: "${texto}"`);
 
@@ -60,24 +49,44 @@ async function processar(telefone, texto, pushName) {
       '1️⃣ Pequena — R$ 15,00\n' +
       '2️⃣ Média — R$ 18,00\n' +
       '3️⃣ Grande — R$ 22,00\n' +
-      '4️⃣ Meu Fiado\n' +
-      '0️⃣ Falar com Atendente'
+      'Para pedir, digite: pedido [número do prato]\nExemplo: pedido 1'
     );
   }
-  else if (['4', 'fiado', 'saldo'].includes(t)) {
-    if (cliente) {
-      await enviar(telefone, `${nome}, seu saldo: R$ ${cliente.balance || 0} 📋`);
-    } else {
-      await enviar(telefone, `${nome}, não encontrei seu cadastro. Fale com atendente!`);
+  else if (t.startsWith('pedido ')) {
+    const num = t.split(' ')[1];
+    const pratos = {
+      '1': { nome: 'Pequena', valor: 15.00 },
+      '2': { nome: 'Média', valor: 18.00 },
+      '3': { nome: 'Grande', valor: 22.00 }
+    };
+    const prato = pratos[num];
+    if (!prato) {
+      await enviar(telefone, `Desculpe, não encontrei o prato número ${num}. Digite *cardápio* para ver as opções.`);
+      return;
     }
-  }
-  else if (['0', 'atendente'].includes(t)) {
-    await enviar(telefone, `Certo ${nome}! 📞 Chamando atendente...`);
+
+    // Gerar payload PIX e QR Code
+    const chavePix = 'seu-email-ou-chave-pix'; // substitua pela sua chave PIX real
+    const descricao = `Pedido ${prato.nome} para ${nome}`;
+    const payload = gerarPayloadPix(chavePix, prato.valor, descricao);
+    const qrCodeBase64 = await gerarQrCodeBase64(payload);
+
+    if (!qrCodeBase64) {
+      await enviar(telefone, 'Erro ao gerar QR Code PIX. Tente novamente.');
+      return;
+    }
+
+    // Enviar mensagem com payload e QR Code (texto + link base64)
+    await enviar(telefone,
+      `Pedido: ${prato.nome} — R$ ${prato.valor.toFixed(2)}\n` +
+      `Para pagar via PIX, escaneie o QR Code abaixo ou copie o código:\n\n${payload}\n\n` +
+      `QR Code (imagem base64):\n${qrCodeBase64}`
+    );
   }
   else {
-    await enviar(telefone, `Recebi, ${nome}! ✅ Digite *cardápio*`);
+    await enviar(telefone, `Recebi, ${nome}! ✅ Digite *cardápio* para ver as opções.`);
   }
 }
 
 module.exports = { processar, setBanco };
-console.log('🤖 bot.js CARREGADO COMPLETO ✅');
+console.log('🤖 bot.js sem backend PIX carregado ✅');
