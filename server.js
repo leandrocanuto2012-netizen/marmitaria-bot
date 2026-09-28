@@ -110,7 +110,7 @@ async function processarMensagem(telefone, texto) {
 // =============================================
 // WEBHOOK
 // =============================================
-app.post('/api/bot/webhook', async (req, res) => {
+app.post('/api/marmitaria/webhook', async (req, res) => {
   res.status(200).send({ ok: true }); // Responde rápido ⚡
 
   try {
