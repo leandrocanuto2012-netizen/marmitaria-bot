@@ -30,8 +30,8 @@ async function iniciar() {
 }
 iniciar();
 
-// ✅ ROTA — ACEITA OS DOIS CAMINHOS
-app.post(['/api/bot/webhook', '/api/bot/webhook'], async (req, res) => {
+// ✅ ROTA — ACEITA UM CAMINHO (pode adicionar outro se quiser)
+app.post('/api/bot/webhook', async (req, res) => {
   res.status(200).json({ ok: true });
 
   try {
@@ -43,9 +43,10 @@ app.post(['/api/bot/webhook', '/api/bot/webhook'], async (req, res) => {
       if (!msg || msg.fromMe) return;
 
       const telefone = msg.key?.remoteJid?.replace('@s.whatsapp.net', '');
-      const texto = 
+      const texto =
         msg.message?.conversation ||
-        msg.message?.extendedTextMessage?.text || '';
+        msg.message?.extendedTextMessage?.text ||
+        '';
       const pushName = msg.pushName || 'Cliente';
 
       console.log(`📞 ${telefone} | "${texto}"`);
@@ -59,11 +60,8 @@ app.post(['/api/bot/webhook', '/api/bot/webhook'], async (req, res) => {
   }
 });
 
-  res.send('🚀 ONLINE! Webhook: /api/bot/webhook ✅');
-);
-
 const PORTA = process.env.PORT || 1000;
-app.listen(PORTA, () => ({
+app.listen(PORTA, () => {
   console.log('========================================');
   console.log(`🚀 RODANDO NA PORTA ${PORTA}`);
   console.log(`🔗 https://marmitaria-bot-1.onrender.com/api/bot/webhook`);
