@@ -1,596 +1,204 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🍽️ Cardápio - Marmitaria</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: 'Poppins', sans-serif;
-    }
-
-    :root {
-      --primary: #d32f2f;
-      --primary-dark: #b71c1c;
-      --secondary: #2e7d32;
-      --secondary-dark: #1b5e20;
-      --gold: #f57c00;
-      --light: #fff8f0;
-      --dark: #2d2d2d;
-      --gray: #f5f5f5;
-      --shadow: 0 4px 20px rgba(0,0,0,0.08);
-      --shadow-hover: 0 8px 30px rgba(0,0,0,0.12);
-    }
-
-    body {
-      background: var(--light);
-      min-height: 100vh;
-      padding-bottom: 100px;
-    }
-
-    /* HEADER */
-    header {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-      color: white;
-      padding: 30px 20px;
-      text-align: center;
-      box-shadow: var(--shadow);
-    }
-
-    header h1 {
-      font-size: 28px;
-      font-weight: 700;
-      margin-bottom: 5px;
-    }
-
-    header p {
-      font-size: 15px;
-      opacity: 0.9;
-    }
-
-    /* CATEGORIAS */
-    .categories {
-      display: flex;
-      overflow-x: auto;
-      gap: 10px;
-      padding: 15px 20px;
-      background: white;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-    }
-
-    .categories::-webkit-scrollbar {
-      height: 4px;
-    }
-
-    .categories::-webkit-scrollbar-thumb {
-      background: #ddd;
-      border-radius: 4px;
-    }
-
-    .cat-btn {
-      padding: 12px 22px;
-      border: none;
-      border-radius: 30px;
-      background: var(--gray);
-      color: var(--dark);
-      cursor: pointer;
-      white-space: nowrap;
-      font-size: 14px;
-      font-weight: 500;
-      transition: all 0.3s ease;
-    }
-
-    .cat-btn:hover {
-      transform: translateY(-2px);
-    }
-
-    .cat-btn.active {
-      background: var(--primary);
-      color: white;
-      box-shadow: 0 4px 12px rgba(211, 47, 47, 0.3);
-    }
-
-    /* ITENS */
-    .items {
-      max-width: 700px;
-      margin: 0 auto;
-      padding: 25px 20px;
-    }
-
-    .section-title {
-      font-size: 20px;
-      font-weight: 600;
-      color: var(--dark);
-      margin-bottom: 20px;
-      padding-bottom: 10px;
-      border-bottom: 2px solid #eee;
-    }
-
-    .item-card {
-      background: white;
-      border-radius: 16px;
-      padding: 20px;
-      margin-bottom: 16px;
-      box-shadow: var(--shadow);
-      transition: all 0.3s ease;
-      border: 1px solid #f0f0f0;
-    }
-
-    .item-card:hover {
-      transform: translateY(-3px);
-      box-shadow: var(--shadow-hover);
-    }
-
-    .item-card h3 {
-      font-size: 18px;
-      font-weight: 600;
-      color: var(--dark);
-      margin-bottom: 6px;
-    }
-
-    .item-card p {
-      color: #757575;
-      font-size: 14px;
-      line-height: 1.5;
-      margin-bottom: 12px;
-    }
-
-    .item-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .price {
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--secondary);
-    }
-
-    .add-btn {
-      background: var(--primary);
-      color: white;
-      border: none;
-      padding: 10px 24px;
-      border-radius: 10px;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .add-btn:hover {
-      background: var(--primary-dark);
-      transform: scale(1.05);
-    }
-
-    /* CARRINHO FIXO */
-    .cart-bar {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: white;
-      padding: 18px 25px;
-      box-shadow: 0 -4px 20px rgba(0,0,0,0.1);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      z-index: 200;
-      display: none;
-    }
-
-    .cart-info {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .cart-count {
-      font-size: 13px;
-      color: #757575;
-    }
-
-    .cart-total {
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--secondary);
-    }
-
-    .cart-btn {
-      background: var(--secondary);
-      color: white;
-      border: none;
-      padding: 14px 30px;
-      border-radius: 12px;
-      font-size: 16px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-    }
-
-    .cart-btn:hover {
-      background: var(--secondary-dark);
-      transform: scale(1.05);
-    }
-
-    /* MODAL */
-    .modal {
-      display: none;
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.6);
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      z-index: 300;
-      backdrop-filter: blur(4px);
-    }
-
-    .modal.open {
-      display: flex;
-    }
-
-    .modal-content {
-      background: white;
-      padding: 30px;
-      border-radius: 20px;
-      max-width: 440px;
-      width: 100%;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-      animation: slideUp 0.3s ease;
-    }
-
-    @keyframes slideUp {
-      from { opacity: 0; transform: translateY(30px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .modal-content h2 {
-      text-align: center;
-      margin-bottom: 25px;
-      color: var(--dark);
-      font-size: 22px;
-    }
-
-    input, textarea, select {
-      width: 100%;
-      padding: 14px 16px;
-      margin-bottom: 16px;
-      border: 2px solid #eee;
-      border-radius: 10px;
-      font-size: 15px;
-      transition: border-color 0.3s;
-    }
-
-    input:focus, textarea:focus, select:focus {
-      outline: none;
-      border-color: var(--primary);
-    }
-
-    .submit-btn {
-      background: var(--secondary);
-      color: white;
-      border: none;
-      padding: 16px;
-      border-radius: 10px;
-      width: 100%;
-      font-size: 17px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s;
-    }
-
-    .submit-btn:hover {
-      background: var(--secondary-dark);
-      transform: scale(1.02);
-    }
-
-    .close-btn {
-      background: var(--gray);
-      border: none;
-      padding: 12px;
-      border-radius: 10px;
-      margin-top: 12px;
-      width: 100%;
-      cursor: pointer;
-      font-size: 15px;
-      transition: background 0.3s;
-    }
-
-    .close-btn:hover {
-      background: #e0e0e0;
-    }
-
-    .resumo {
-      background: var(--gray);
-      padding: 15px;
-      border-radius: 10px;
-      margin-bottom: 20px;
-    }
-
-    .resumo-item {
-      display: flex;
-      justify-content: space-between;
-      padding: 6px 0;
-      font-size: 14px;
-    }
-
-    .resumo-total {
-      display: flex;
-      justify-content: space-between;
-      padding: 12px 0 0;
-      margin-top: 8px;
-      border-top: 1px solid #ddd;
-      font-weight: 700;
-      font-size: 16px;
-      color: var(--secondary);
-    }
-
-    .loading {
-      text-align: center;
-      padding: 40px;
-      color: #757575;
-    }
-
-    .spinner {
-      border: 3px solid #f3f3f3;
-      border-top: 3px solid var(--primary);
-      border-radius: 50%;
-      width: 40px;
-      height: 40px;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 15px;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-  </style>
-</head>
-<body>
-
-  <header>
-    <h1>🍽️ Cardápio</h1>
-    <p>Faça seu pedido com carinho 💛</p>
-  </header>
-
-  <div class="categories" id="categories">
-    <button class="cat-btn active" data-cat="">Todos</button>
-  </div>
-
-  <div class="items" id="items">
-    <div class="loading">
-      <div class="spinner"></div>
-      Carregando cardápio...
-    </div>
-  </div>
-
-  <!-- CARRINHO FIXO EM BAIXO -->
-  <div class="cart-bar" id="cartBar">
-    <div class="cart-info">
-      <span class="cart-count" id="cartCount">0 itens</span>
-      <span class="cart-total" id="cartTotal">R$ 0,00</span>
-    </div>
-    <button class="cart-btn" onclick="abrirModal()">Finalizar Pedido ✅</button>
-  </div>
-
-  <!-- MODAL DE FINALIZAÇÃO -->
-  <div class="modal" id="checkoutModal">
-    <div class="modal-content">
-      <h2>📋 Finalizar Pedido</h2>
-      
-      <div class="resumo" id="resumoPedido"></div>
-
-      <input type="text" id="nome" placeholder="Seu nome *" required>
-      <input type="tel" id="telefone" placeholder="Seu WhatsApp *" required>
-      <textarea id="endereco" placeholder="Endereço completo (se entrega)" rows="2"></textarea>
-      <select id="pagamento">
-        <option value="">Forma de Pagamento *</option>
-        <option value="pix">PIX</option>
-        <option value="dinheiro">Dinheiro</option>
-        <option value="cartao">Cartão de Crédito/Débito</option>
-      </select>
-      <textarea id="observacoes" placeholder="Observações (opcional)" rows="2"></textarea>
-      
-      <button class="submit-btn" onclick="enviarPedido()">✅ Confirmar Pedido</button>
-      <button class="close-btn" onclick="fecharModal()">Voltar ao Cardápio</button>
-    </div>
-  </div>
-
-  <script>
-    let carrinho = [];
-    let categorias = [];
-    let itens = [];
-    let catAtiva = '';
-
-    // Carregar dados
-    async function carregarDados() {
-      try {
-        const [catRes, itRes] = await Promise.all([
-          fetch('api/menu/categories').then(r => r.json()),
-          fetch('api/menu/items').then(r => r.json())
-        ]);
-        categorias = catRes;
-        itens = itRes;
-        renderCategorias();
-        renderItens();
-      } catch (e) {
-        document.getElementById('items').innerHTML = `
-          <div style="text-align:center;padding:40px;color:red;">
-            ⚠️ Erro ao carregar. Atualize a página.
-          </div>
-        `;
-      }
-    }
-
-    // Renderizar categorias
-    function renderCategorias() {
-      const container = document.getElementById('categories');
-      container.innerHTML = `<button class="cat-btn ${catAtiva===''?'active':''}" data-cat="">Todos</button>`;
-      categorias.forEach(c => {
-        container.innerHTML += `<button class="cat-btn ${catAtiva===c.id?'active':''}" data-cat="${c.id}">${c.name}</button>`;
-      });
-      container.querySelectorAll('.cat-btn').forEach(btn => {
-        btn.onclick = () => {
-          catAtiva = btn.dataset.cat;
-          renderCategorias();
-          renderItens();
-        };
-      });
-    }
-
-    // Renderizar itens
-    function renderItens() {
-      const filtrados = catAtiva ? itens.filter(i => i.category_id === catAtiva) : itens;
-      const container = document.getElementById('items');
-      
-      if (filtrados.length === 0) {
-        container.innerHTML = '<p style="text-align:center;color:#757575;padding:40px;">Nenhum item disponível nesta categoria.</p>';
-        return;
-      }
-
-      container.innerHTML = filtrados.map(item => `
-        <div class="item-card">
-          <h3>${item.name}</h3>
-          <p>${item.description || ''}</p>
-          <div class="item-footer">
-            <span class="price">R$ ${Number(item.price).toFixed(2).replace('.', ',')}</span>
-            <button class="add-btn" onclick="adicionarAoCarrinho('${item.id}', '${item.name.replace(/'/g, "\\'")}', ${item.price})">
-              + Adicionar
-            </button>
-          </div>
-        </div>
-      `).join('');
-    }
-
-    // Adicionar ao carrinho
-    function adicionarAoCarrinho(id, nome, preco) {
-      const existente = carrinho.find(i => i.id === id);
-      if (existente) {
-        existente.quantity++;
-      } else {
-        carrinho.push({ id, name: nome, unit_price: preco, quantity: 1 });
-      }
-      atualizarCarrinho();
-      
-      // Feedback visual
-      const btn = event.target;
-      btn.textContent = '✓ Adicionado!';
-      setTimeout(() => { btn.textContent = '+ Adicionar'; }, 1500);
-    }
-
-    // Atualizar contador e total
-    function atualizarCarrinho() {
-      const totalItens = carrinho.reduce((s, i) => s + i.quantity, 0);
-      const valorTotal = carrinho.reduce((s, i) => s + (i.quantity * i.unit_price), 0);
-      
-      document.getElementById('cartCount').textContent = `${totalItens} item${totalItens!==1?'ens':''}`;
-      document.getElementById('cartTotal').textContent = `R$ ${valorTotal.toFixed(2).replace('.', ',')}`;
-      document.getElementById('cartBar').style.display = carrinho.length ? 'flex' : 'none';
-    }
-
-    // Abrir modal
-    function abrirModal() {
-      if (carrinho.length === 0) {
-        alert('Adicione itens ao carrinho primeiro! 🛒');
-        return;
-      }
-      
-      // Montar resumo
-      const resumo = document.getElementById('resumoPedido');
-      const valorTotal = carrinho.reduce((s, i) => s + (i.quantity * i.unit_price), 0);
-      
-      resumo.innerHTML = `
-        <h4 style="margin-bottom:10px;">Seu Pedido:</h4>
-        ${carrinho.map(i => `
-          <div class="resumo-item">
-            <span>${i.quantity}x ${i.name}</span>
-            <span>R$ ${(i.quantity * i.unit_price).toFixed(2).replace('.', ',')}</span>
-          </div>
-        `).join('')}
-        <div class="resumo-total">
-          <span>TOTAL</span>
-          <span>R$ ${valorTotal.toFixed(2).replace('.', ',')}</span>
-        </div>
-      `;
-      
-      document.getElementById('checkoutModal').classList.add('open');
-    }
-
-    // Fechar modal
-    function fecharModal() {
-      document.getElementById('checkoutModal').classList.remove('open');
-    }
-
-    // Enviar pedido
-    async function enviarPedido() {
-      const nome = document.getElementById('nome').value.trim();
-      const telefone = document.getElementById('telefone').value.trim();
-      const endereco = document.getElementById('endereco').value.trim();
-      const pagamento = document.getElementById('pagamento').value;
-      const observacoes = document.getElementById('observacoes').value.trim();
-
-      if (!nome || !telefone || !pagamento) {
-        alert('⚠️ Preencha nome, telefone e forma de pagamento!');
-        return;
-      }
-
-      // Formatar telefone
-      let telFormatado = telefone.replace(/\D/g, '');
-      if (telFormatado.length === 11) {
-        telFormatado = '55' + telFormatado;
-      }
-
-      const dados = {
-        customer_name: nome,
-        customer_phone: telFormatado,
-        customer_address: endereco,
-        payment_method: pagamento,
-        observations: observacoes,
-        items: carrinho
-      };
-
-      try {
-        const res = await fetch('api/menu/orders', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(dados)
-        });
-
-        if (res.ok) {
-          alert('✅ Pedido confirmado! Em breve entraremos em contato! Obrigado! 💛');
-          carrinho = [];
-          atualizarCarrinho();
-          fecharModal();
-          // Limpar formulário
-          document.getElementById('nome').value = '';
-          document.getElementById('telefone').value = '';
-          document.getElementById('endereco').value = '';
-          document.getElementById('pagamento').value = '';
-          document.getElementById('observacoes').value = '';
-        } else {
-          throw new Error('Erro na resposta');
-        }
-      } catch (e) {
-        alert('❌ Erro ao enviar. Tente novamente ou contate-nos pelo WhatsApp!');
-      }
-    }
-
-    // Iniciar
-    carregarDados();
-  </script>
-</body>
-</html>
+let carrinho = [];
+let categorias = [];
+let itens = [];
+let catAtiva = '';
+
+// Carregar dados do backend
+async function carregarDados() {
+  try {
+    const [catRes, itRes] = await Promise.all([
+      fetch('/api/menu/categories').then(r => r.json()),
+      fetch('/api/menu/items').then(r => r.json())
+    ]);
+    categorias = catRes;
+    itens = itRes;
+    renderCategorias();
+    renderItens();
+  } catch (e) {
+    document.getElementById('items').innerHTML = `
+      <div style="text-align:center;padding:40px;color:red;">
+        ⚠️ Erro ao carregar. Atualize a página.
+      </div>
+    `;
+  }
+}
+
+// Renderizar categorias
+function renderCategorias() {
+  const container = document.getElementById('categories');
+  container.innerHTML = '';
+
+  const btnTodos = document.createElement('button');
+  btnTodos.className = 'cat-btn' + (catAtiva === '' ? ' active' : '');
+  btnTodos.textContent = 'Todos';
+  btnTodos.dataset.cat = '';
+  btnTodos.onclick = () => {
+    catAtiva = '';
+    renderCategorias();
+    renderItens();
+  };
+  container.appendChild(btnTodos);
+
+  categorias.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-btn' + (catAtiva === cat.id ? ' active' : '');
+    btn.textContent = cat.name;
+    btn.dataset.cat = cat.id;
+    btn.onclick = () => {
+      catAtiva = cat.id;
+      renderCategorias();
+      renderItens();
+    };
+    container.appendChild(btn);
+  });
+}
+
+// Renderizar itens filtrados
+function renderItens() {
+  const container = document.getElementById('items');
+  container.innerHTML = '';
+
+  const itensFiltrados = catAtiva
+    ? itens.filter(item => item.categoryId === catAtiva)
+    : itens;
+
+  if (itensFiltrados.length === 0) {
+    container.innerHTML = '<p style="text-align:center;color:#757575;">Nenhum item encontrado.</p>';
+    return;
+  }
+
+  itensFiltrados.forEach(item => {
+    const card = document.createElement('div');
+    card.className = 'item-card';
+
+    card.innerHTML = `
+      <h3>${item.name}</h3>
+      <p>${item.description || ''}</p>
+      <div class="item-footer">
+        <span class="price">R$ ${item.price.toFixed(2).replace('.', ',')}</span>
+        <button class="add-btn" onclick="adicionarAoCarrinho(${item.id})">Adicionar</button>
+      </div>
+    `;
+
+    container.appendChild(card);
+  });
+}
+
+// Adicionar item ao carrinho
+function adicionarAoCarrinho(itemId) {
+  const item = itens.find(i => i.id === itemId);
+  if (!item) return;
+
+  const existente = carrinho.find(i => i.id === itemId);
+  if (existente) {
+    existente.quantidade++;
+  } else {
+    carrinho.push({ ...item, quantidade: 1 });
+  }
+  atualizarCarrinho();
+}
+
+// Atualizar carrinho e interface
+function atualizarCarrinho() {
+  const cartBar = document.getElementById('cartBar');
+  const cartCount = document.getElementById('cartCount');
+  const cartTotal = document.getElementById('cartTotal');
+
+  if (carrinho.length === 0) {
+    cartBar.style.display = 'none';
+    return;
+  }
+
+  cartBar.style.display = 'flex';
+
+  let totalItens = 0;
+  let totalPreco = 0;
+
+  carrinho.forEach(item => {
+    totalItens += item.quantidade;
+    totalPreco += item.price * item.quantidade;
+  });
+
+  cartCount.textContent = `${totalItens} item${totalItens > 1 ? 's' : ''}`;
+  cartTotal.textContent = `R$ ${totalPreco.toFixed(2).replace('.', ',')}`;
+}
+
+// Abrir modal de finalização
+function abrirModal() {
+  if (carrinho.length === 0) return alert('Seu carrinho está vazio.');
+
+  const resumo = document.getElementById('resumoPedido');
+  resumo.innerHTML = '';
+
+  carrinho.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'resumo-item';
+    div.innerHTML = `
+      <span>${item.name} x${item.quantidade}</span>
+      <span>R$ ${(item.price * item.quantidade).toFixed(2).replace('.', ',')}</span>
+    `;
+    resumo.appendChild(div);
+  });
+
+  const total = carrinho.reduce((acc, item) => acc + item.price * item.quantidade, 0);
+  const divTotal = document.createElement('div');
+  divTotal.className = 'resumo-total';
+  divTotal.textContent = `Total: R$ ${total.toFixed(2).replace('.', ',')}`;
+  resumo.appendChild(divTotal);
+
+  document.getElementById('checkoutModal').classList.add('open');
+}
+
+// Fechar modal
+function fecharModal() {
+  document.getElementById('checkoutModal').classList.remove('open');
+}
+
+// Enviar pedido para backend
+async function enviarPedido() {
+  const nome = document.getElementById('nome').value.trim();
+  const telefone = document.getElementById('telefone').value.trim();
+  const endereco = document.getElementById('endereco').value.trim();
+  const pagamento = document.getElementById('pagamento').value;
+  const observacoes = document.getElementById('observacoes').value.trim();
+
+  if (!nome || !telefone || !pagamento) {
+    alert('Por favor, preencha os campos obrigatórios: nome, telefone e forma de pagamento.');
+    return;
+  }
+
+  const pedido = {
+    cliente: { nome, telefone, endereco },
+    pagamento,
+    observacoes,
+    itens: carrinho.map(({ id, quantidade }) => ({ id, quantidade })),
+    total: carrinho.reduce((acc, item) => acc + item.price * item.quantidade, 0)
+  };
+
+  try {
+    const res = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(pedido)
+    });
+
+    if (!res.ok) throw new Error('Erro ao enviar pedido.');
+
+    alert('Pedido enviado com sucesso! Obrigado pela preferência.');
+    carrinho = [];
+    atualizarCarrinho();
+    fecharModal();
+    // Limpar campos
+    document.getElementById('nome').value = '';
+    document.getElementById('telefone').value = '';
+    document.getElementById('endereco').value = '';
+    document.getElementById('pagamento').value = '';
+    document.getElementById('observacoes').value = '';
+  } catch (e) {
+    alert('Erro ao enviar pedido. Tente novamente.');
+    console.error(e);
+  }
+}
+
+// Inicializar
+carregarDados();
