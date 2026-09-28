@@ -58,12 +58,12 @@ app.post(['/api/bot/webhook', '/api/bot/webhook'], async (req, res) => {
     console.error('❌ ERRO:', e.message);
   }
 });
-}
+
   res.send('🚀 ONLINE! Webhook: /api/bot/webhook ✅');
 });
 
 const PORTA = process.env.PORT || 1000;
-app.listen(PORTA, () => {
+app.listen(PORTA, () => ({
   console.log('========================================');
   console.log(`🚀 RODANDO NA PORTA ${PORTA}`);
   console.log(`🔗 https://marmitaria-bot-1.onrender.com/api/bot/webhook`);
