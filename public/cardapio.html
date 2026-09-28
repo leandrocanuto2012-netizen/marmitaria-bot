@@ -420,8 +420,8 @@
     async function carregarDados() {
       try {
         const [catRes, itRes] = await Promise.all([
-          fetch('/api/menu/categories').then(r => r.json()),
-          fetch('/api/menu/items').then(r => r.json())
+          fetch('api/menu/categories').then(r => r.json()),
+          fetch('api/menu/items').then(r => r.json())
         ]);
         categorias = catRes;
         itens = itRes;
@@ -564,7 +564,7 @@
       };
 
       try {
-        const res = await fetch('/api/menu/orders', {
+        const res = await fetch('api/menu/orders', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(dados)
