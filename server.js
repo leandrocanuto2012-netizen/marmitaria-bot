@@ -6,12 +6,10 @@ const axios = require('axios');
 const app = express();
 
 // =============================================
-// LOG COMPLETO
+// LOG
 // =============================================
 app.use((req, res, next) => {
-  console.log('========================================');
   console.log(`📥 ${req.method} ${req.path}`);
-  console.log('📦 CORPO:', JSON.stringify(req.body || {}));
   next();
 });
 
@@ -25,7 +23,8 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-pool.connect().then(() => console.log('✅ BANCO CONECTADO'))
+pool.connect()
+  .then(() => console.log('✅ BANCO CONECTADO'))
   .catch(e => console.error('❌ BANCO:', e.message));
 
 // =============================================
@@ -71,27 +70,26 @@ async function buscarCliente(telefone) {
 }
 
 // =============================================
-// PROCESSAR E RESPONDER
+// PROCESSAR MENSAGEM
 // =============================================
 async function processarMensagem(telefone, texto, pushName) {
   const t = String(texto || '').trim().toLowerCase();
   const cliente = await buscarCliente(telefone);
   const nome = cliente?.name || pushName || 'amigo(a)';
 
-  console.log(`💬 ${nome} (${telefone}): "${texto}"`);
+  console.log(`💬 ${nome}: "${texto}"`);
 
   if (['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'ou'].includes(t)) {
     await enviarMensagem(telefone,
-      `Olá, ${nome}! 😋 Tudo bem?\n\n` +
-      'Digite *cardápio* para ver nossos pratos!'
+      `Olá, ${nome}! 😋 Tudo bem?\n\nDigite *cardápio* para ver nossos pratos!`
     );
   }
   else if (['cardápio', 'cardapio', 'menu'].includes(t)) {
     await enviarMensagem(telefone,
       `Aqui está, ${nome}! 🍽️\n\n` +
-      '1️⃣ Pequena — R$ 15,00\n' +
-      '2️⃣ Média — R$ 18,00\n' +
-      '3️⃣ Grande — R$ 22,00\n' +
+      '1️⃣ Marmita Pequena — R$ 15,00\n' +
+      '2️⃣ Marmita Média — R$ 18,00\n' +
+      '3️⃣ Marmita Grande — R$ 22,00\n' +
       '4️⃣ Verificar Fiado\n' +
       '0️⃣ Falar com Atendente'
     );
@@ -109,14 +107,14 @@ async function processarMensagem(telefone, texto, pushName) {
 }
 
 // =============================================
-// ✅ ROTA CORRETA — WEBHOOK
+// ✅ ROTA CORRETA — SEM BARRA DUPLA
 // =============================================
 app.post('/api/bot/webhook', async (req, res) => {
   res.status(200).json({ ok: true });
 
   try {
     const { event, data } = req.body;
-    console.log('📩 EVENTO RECEBIDO:', event);
+    console.log('📩 EVENTO:', event);
 
     if (event === 'messages.upsert') {
       const msg = data?.messages?.[0];
@@ -138,28 +136,16 @@ app.post('/api/bot/webhook', async (req, res) => {
   }
 });
 
-// =============================================
-// ⚠️ PÁGINA DE TESTE — AVISA QUE É PELA EVOLUTION
-// =============================================
-app.get('/api/bot/webhook', (req, res) => {
-  res.send('⚠️ ROTA DO WEBHOOK — Use POST pela Evolution API! ✅');
-});
-
-app.get('/webhooksera', (req, res) => {
-  res.send('❌ ROTA ERRADA! Use /api/bot/webhook');
-});
-
+// Página de teste
 app.get('/', (req, res) => {
-  res.send('🚀 Marmitaria Bot — ONLINE! Use /api/bot/webhook ✅');
+  res.send('🚀 ONLINE! Webhook: /api/bot/webhook ✅');
 });
 
-// =============================================
 // INICIAR
-// =============================================
 const PORTA = process.env.PORT || 1000;
 app.listen(PORTA, () => {
   console.log('========================================');
-  console.log(`🚀 SERVIDOR NA PORTA ${PORTA}`);
+  console.log(`🚀 RODANDO NA PORTA ${PORTA}`);
   console.log(`🔗 WEBHOOK: https://marmitaria-bot-1.onrender.com/api/bot/webhook`);
   console.log('========================================');
 });
