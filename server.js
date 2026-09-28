@@ -5,7 +5,7 @@ const { processar, setBanco } = require('./bot');
 
 const app = express();
 
-// log de tudo
+// Log de todas as requisições
 app.use((req, res, next) => {
   console.log(`📥 ${req.method} ${req.path}`);
   next();
@@ -13,7 +13,7 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: '5mb' }));
 
-// banco
+// Configura conexão com PostgreSQL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
@@ -24,14 +24,14 @@ async function iniciar() {
     const client = await pool.connect();
     client.release();
     console.log('✅ BANCO CONECTADO');
-    setBanco(pool);
+    setBanco(pool); // passa conexão para o bot
   } catch (e) {
     console.error('❌ ERRO AO CONECTAR NO BANCO:', e.message);
   }
 }
 iniciar();
 
-// rota health
+// Rota health check
 app.get('/', (req, res) => {
   res.status(200).json({
     ok: true,
@@ -40,10 +40,9 @@ app.get('/', (req, res) => {
   });
 });
 
-// webhook
+// Webhook para receber mensagens
 app.post('/api/bot/webhook', async (req, res) => {
-  // responde rápido pro serviço não reenviar
-  res.status(200).json({ ok: true });
+  res.status(200).json({ ok: true }); // responde rápido
 
   try {
     const { event, data } = req.body;
