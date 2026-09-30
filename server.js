@@ -1,13 +1,17 @@
 require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
-const { processarMensagem } = require('./bot.js'); // ← Importa o bot!
+const { processarMensagem } = require('./bot.js');
 const app = express();
 
-// ✅ PRIMEIRO — Webhook (ANTES do express.static!)
+// ==============================================
+// ✅ PASSO 1 — JSON PRIMEIRO
+// ==============================================
 app.use(express.json());
 
-// ========== WEBHOOK ==========
+// ==============================================
+// ✅ PASSO 2 — WEBHOOK ANTES DE TUDO! SEMPRE!
+// ==============================================
 app.post('/webhook', async (req, res) => {
   console.log('\n' + '='.repeat(50));
   console.log('📩 RECEBIDO /webhook —', new Date().toLocaleString('pt-BR'));
@@ -25,15 +29,18 @@ app.post('/webhook', async (req, res) => {
         const telefone = msg.key.remoteJid.replace('@s.whatsapp.net', '');
         const texto = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
         
-        if (!texto) continue;
+        if (!texto) {
+          console.log('↳ Sem texto — ignorada');
+          continue;
+        }
 
-        console.log(`📩 De: ${telefone} — "${texto}"`);
+        console.log(`📩 ${telefone}: "${texto}"`);
 
-        // ✅ Usa a função do bot.js
+        // Processa usando bot.js
         const resposta = processarMensagem(telefone, texto);
-        console.log(`🤖 Resposta pronta`);
+        console.log(`🤖 Resposta: "${resposta.substring(0,50)}..."`);
 
-        // Envia pelo Evolution
+        // Envia resposta
         try {
           await axios.post(
             `${process.env.EVO_URL}/message/sendText/${process.env.EVO_INSTANCE}`,
@@ -49,36 +56,41 @@ app.post('/webhook', async (req, res) => {
 
     res.status(200).send('OK');
   } catch (e) {
-    console.error('❌ Erro:', e.message);
+    console.error('❌ Erro geral:', e.message);
     res.status(200).send('OK');
   }
   console.log('='.repeat(50) + '\n');
 });
 
-// ✅ DEPOIS — Arquivos estáticos (public/cardápio)
-app.use(express.static('public'));
+// ==============================================
+// ✅ PASSO 3 — PASTA public DEPOIS do webhook!
+// ==============================================
+app.use(express.static('public'));  // ← Cardápio HTML carrega AQUI, sem bloquear nada!
 
-// ========== PÁGINA INICIAL ==========
+// ==============================================
+// ✅ PASSO 4 — PÁGINA INICIAL
+// ==============================================
 app.get('/', (req, res) => {
   res.send(`
     <html>
       <body style="font-family:Arial; text-align:center; padding:50px; background:#fef6e9;">
         <h1>🤖 marmita-bot-1 — ONLINE ✅</h1>
-        <p>Webhook: <code>/webhook</code></p>
-        <p>Bot carregado de: <code>bot.js</code></p>
+        <p>Webhook funcionando: <code>/webhook</code></p>
+        <p>Cardápio disponível em: <a href="/cardapio.html">/cardapio.html</a></p>
         <p>Evolution: ${process.env.EVO_URL}</p>
       </body>
     </html>
   `);
 });
 
-// ========== INICIAR ==========
+// ==============================================
+// ✅ PASSO 5 — INICIAR
+// ==============================================
 const PORTA = process.env.PORT || 8080;
 app.listen(PORTA, () => {
-  console.log('\n🚀 SERVIDOR INICIADO');
+  console.log('\n🚀 SERVIDOR RODANDO');
   console.log(`🔗 Webhook: https://marmita-bot-1.onrender.com/webhook`);
+  console.log(`📂 Cardápio: https://marmita-bot-1.onrender.com/cardapio.html`);
   console.log(`📡 Evolution: ${process.env.EVO_URL}`);
-  console.log(`🤖 Instância: ${process.env.EVO_INSTANCE}`);
-  console.log(`📂 Bot carregado de: bot.js`);
   console.log('✅ Tudo pronto! 🎉\n');
 });
