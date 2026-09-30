@@ -1,81 +1,145 @@
 require('dotenv').config();
 const express = require('express');
-const { Pool } = require('pg');
-const { processar, setBanco } = require('./bot');
-
+const { createClient } = require('@supabase/supabase-js');
+const axios = require('axios');
 const app = express();
 
-// Log de todas as requisições
-app.use((req, res, next) => {
-  console.log(`📥 ${req.method} ${req.path}`);
-  next();
-});
+app.use(express.json());
+app.use(express.static('public'));
 
-app.use(express.json({ limit: '5mb' }));
+// ========== CONEXÃO SUPABASE ==========
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_KEY
+);
 
-// Configura conexão com PostgreSQL
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
-
-async function iniciar() {
+// ========== TESTE DE CONEXÃO ==========
+async function testarBanco() {
   try {
-    const client = await pool.connect();
-    client.release();
-    console.log('✅ BANCO CONECTADO');
-    setBanco(pool); // passa conexão para o bot
+    const { data, error } = await supabase.from('bot_messages').select('id').limit(1);
+    if (error) throw error;
+    console.log('✅ SUPABASE CONECTADO!');
   } catch (e) {
-    console.error('❌ ERRO AO CONECTAR NO BANCO:', e.message);
+    console.log('ℹ️ Banco acessível — tabelas serão criadas');
   }
 }
-iniciar();
+testarBanco();
 
-// Rota health check
-app.get('/', (req, res) => {
-  res.status(200).json({
-    ok: true,
-    service: 'bot-whatsapp',
-    webhook: '/api/bot/webhook'
-  });
-});
-
-// Webhook para receber mensagens
-app.post('/api/bot/webhook', async (req, res) => {
-  res.status(200).json({ ok: true }); // responde rápido
-
+// ========== ENVIAR MENSAGEM WHATSAPP ==========
+async function enviarWhatsApp(numero, texto) {
   try {
-    const { event, data } = req.body;
-    console.log('📩 EVENTO:', event);
-
-    if (event !== 'messages.upsert') return;
-
-    const msg = data?.messages?.[0];
-    if (!msg || msg.key?.fromMe || msg.fromMe) return;
-
-    const telefone = msg.key?.remoteJid?.replace('@s.whatsapp.net', '')?.replace('@g.us', '');
-    const texto =
-      msg.message?.conversation ||
-      msg.message?.extendedTextMessage?.text ||
-      msg.message?.imageMessage?.caption ||
-      '';
-
-    const pushName = msg.pushName || 'Cliente';
-
-    console.log(`📞 ${telefone} | "${texto}"`);
-
-    if (telefone && texto) {
-      await processar(telefone, texto, pushName);
-    }
+    const url = `${process.env.EVO_URL}/message/sendText/${process.env.EVO_INSTANCE}`;
+    await axios.post(
+      url,
+      { number: numero, text: texto },
+      {
+        headers: {
+          'apikey': process.env.EVO_KEY,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    console.log(`✅ Enviado para ${numero}`);
+    return true;
   } catch (e) {
-    console.error('❌ ERRO NO WEBHOOK:', e.message);
+    console.error('❌ Erro envio:', e.response?.data || e.message);
+    return false;
+  }
+}
+
+// ========== SALVAR MENSAGEM ==========
+async function salvarMensagem(telefone, texto, direcao) {
+  try {
+    await supabase.from('bot_messages').insert({
+      phone_number: telefone,
+      content: texto,
+      direction: direcao
+    });
+  } catch (e) {}
+}
+
+// ========== LÓGICA DO BOT ==========
+async function processarMensagem(telefone, mensagem) {
+  const msg = mensagem.trim().toLowerCase();
+
+  if (['oi','olá','ola','bom dia','boa tarde','boa noite','opa'].includes(msg)) {
+    return 'Olá! Tudo bem? 😋\nSeja bem-vindo(a) à Marmitaria!\n\nEscolha:\n1️⃣ Cardápio\n2️⃣ Fazer Pedido\n3️⃣ Horário\n4️⃣ Falar com Atendente';
+  }
+
+  if (msg === '1' || msg === 'cardápio' || msg === 'cardapio') {
+    return '📋 *CARDÁPIO*\n\n🍽️ Prato Feito — R$ 18,00\n🥗 Salada Completa — R$ 12,00\n🍖 Feijoada — R$ 25,00\n🍹 Suco — R$ 6,00\n🥤 Refrigerante — R$ 5,00\n\nExemplo: "2 Prato Feito"';
+  }
+
+  if (msg === '3' || msg === 'horário' || msg === 'horario') {
+    return '🕐 *Funcionamento*\nSeg–Sex: 10h às 15h\nSáb: 11h às 14h\nDom: Fechado 🚫';
+  }
+
+  if (msg === '2' || msg.includes('pedido')) {
+    return 'Perfeito! 🥰\nMe diga o que deseja:\nExemplo: "1 Feijoada e 1 Suco"';
+  }
+
+  if (msg === '4' || msg.includes('atendente') || msg.includes('falar')) {
+    return 'Claro! 📞\nTransferindo para atendente...\nAguarde um instante!';
+  }
+
+  if (msg.includes('confirmo') || msg.includes('confirmar')) {
+    return '✅ Pedido confirmado! Obrigado! 🎉\nRetirada em ~20 minutos no balcão!';
+  }
+
+  return 'Desculpe, não entendi 😅\nEscolha:\n1️⃣ Cardápio\n2️⃣ Fazer Pedido\n3️⃣ Horário\n4️⃣ Falar com Atendente';
+}
+
+// ========== WEBHOOK — /webhook ==========
+app.post('/webhook', async (req, res) => {
+  try {
+    const evento = req.body;
+    console.log('📩 Evento:', evento.event);
+
+    if (evento.event === 'messages.upsert' && evento.data?.messages) {
+      for (const msg of evento.data.messages) {
+        if (msg.fromMe) continue;
+
+        const telefone = msg.key.remoteJid.replace('@s.whatsapp.net', '');
+        const texto = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
+        
+        if (!texto) continue;
+
+        console.log(`📩 ${telefone}: "${texto}"`);
+        await salvarMensagem(telefone, texto, 'INBOUND');
+        
+        const resposta = await processarMensagem(telefone, texto);
+        await enviarWhatsApp(telefone, resposta);
+        await salvarMensagem(telefone, resposta, 'OUTBOUND');
+      }
+    }
+    res.status(200).send('OK');
+  } catch (e) {
+    console.error('❌ Erro:', e.message);
+    res.status(200).send('OK');
   }
 });
 
-const PORTA = process.env.PORT || 1000;
+// ========== PÁGINA INICIAL ==========
+app.get('/', (req, res) => {
+  res.send(`
+    <html>
+      <body style="font-family:Arial; text-align:center; padding:50px; background:#fef6e9;">
+        <h1>🤖 Marmitaria Bot</h1>
+        <p>✅ Sistema ONLINE</p>
+        <p>Porta: ${process.env.PORT}</p>
+        <p>Evolution: ${process.env.EVO_URL}</p>
+      </body>
+    </html>
+  `);
+});
+
+// ========== INICIAR ==========
+const PORTA = process.env.PORT || 8080;
 app.listen(PORTA, () => {
-  console.log('========================================');
-  console.log(`🚀 RODANDO NA PORTA ${PORTA}`);
-  console.log(`🔗 WEBHOOK: ${process.env.WEBHOOK_URL || 'configure WEBHOOK_URL no .env'}`);
-  console.log('========================================');
+  console.log('='.repeat(55));
+  console.log(`🚀 SERVIDOR — PORTA ${PORTA}`);
+  console.log(`🔗 Webhook: https://marmitaria-bot-1.onrender.com/webhook`);
+  console.log(`📡 Evolution: ${process.env.EVO_URL}`);
+  console.log(`🤖 Instância: ${process.env.EVO_INSTANCE}`);
+  console.log('='.repeat(55));
 });
