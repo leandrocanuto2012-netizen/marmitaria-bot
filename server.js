@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
-// Banco de Dados
+// Banco
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
@@ -25,7 +25,7 @@ async function testarBanco() {
 }
 testarBanco();
 
-// Enviar Mensagem WhatsApp
+// Enviar Mensagem
 async function enviarMensagem(telefone, texto) {
   try {
     const url = `${process.env.EVO_URL}/message/sendText/${process.env.EVO_INSTANCE}`;
@@ -53,30 +53,42 @@ async function enviarMensagem(telefone, texto) {
   }
 }
 
-// Webhook — RECEBER mensagens
+// Webhook — CORRIGIDO!
 app.post('/api/bot/webhook', async (req, res) => {
   console.log('📥 MENSAGEM CHEGOU! Evento:', req.body?.event);
+  console.log('📦 Corpo completo:', JSON.stringify(req.body, null, 2)); // Mostra TUDO que chegou
   
   try {
     const evento = req.body;
 
-    if (evento.event === 'messages.upsert' && evento.data?.message) {
-      const msg = evento.data.message;
+    if (evento.event === 'messages.upsert') {
+      // 🔑 CORREÇÃO: mensagens vem dentro de "messages" (plural)
+      const mensagens = evento.data?.messages || [];
       
-      if (msg.fromMe) {
-        console.log('↩️ Mensagem do bot — ignorada');
-        return res.sendStatus(200);
-      }
+      for (const msg of mensagens) {
+        if (!msg) continue;
+        
+        if (msg.fromMe) {
+          console.log('↩️ Mensagem do bot — ignorada');
+          continue;
+        }
 
-      const telefone = msg.key.remoteJid.replace('@c.us', '');
-      const textoRecebido = msg.text || '';
-      
-      console.log(`💬 ${telefone}: ${textoRecebido}`);
+        // ✅ Agora pega do lugar CERTO
+        const telefone = msg.key?.remoteJid?.replace('@c.us', '');
+        const textoRecebido = msg.message?.conversation || msg.text || '';
+        
+        if (!telefone) {
+          console.log('⚠️ Telefone não encontrado!');
+          continue;
+        }
+        
+        console.log(`💬 ${telefone}: ${textoRecebido}`);
 
-      const resposta = await bot.processar(telefone, textoRecebido, pool);
-      
-      if (resposta) {
-        await enviarMensagem(telefone, resposta);
+        const resposta = await bot.processar(telefone, textoRecebido, pool);
+        
+        if (resposta) {
+          await enviarMensagem(telefone, resposta);
+        }
       }
     }
 
