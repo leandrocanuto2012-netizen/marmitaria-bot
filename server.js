@@ -85,5 +85,5 @@ app.get('/', (req, res) => {
 const PORTA = process.env.PORT || 8080;
 app.listen(PORTA, () => {
   console.log(`🚀 Servidor rodando na porta ${PORTA}`);
-  console.log(`🔗 Webhook: https://marmita-bot-1.onrender.com/api/bot/webhook`);
+  console.log(`🔗 Webhook: https://marmitaria-bot-1-4h2t.onrender.com/api/bot/webhook`);
 });
