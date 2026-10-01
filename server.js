@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
-// Conexão com o banco
+// Banco de Dados
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
@@ -16,20 +16,24 @@ const pool = new Pool({
 
 async function testarBanco() {
   try {
-    const c = await pool.connect();
-    console.log('✅ Banco conectado!');
-    c.release();
-  } catch(e) {
-    console.error('❌ ERRO NO BANCO:', e.message);
+    const cliente = await pool.connect();
+    console.log('✅ Banco CONECTADO');
+    cliente.release();
+  } catch (erro) {
+    console.error('❌ ERRO BANCO:', erro.message);
   }
 }
 testarBanco();
 
-// Enviar mensagem pela Evolution
+// Enviar Mensagem WhatsApp
 async function enviarMensagem(telefone, texto) {
   try {
     const url = `${process.env.EVO_URL}/message/sendText/${process.env.EVO_INSTANCE}`;
-    await axios.post(url, {
+    
+    console.log('📤 Enviando para:', url);
+    console.log('📤 Telefone:', telefone);
+    
+    const resposta = await axios.post(url, {
       number: telefone,
       text: texto
     }, {
@@ -38,31 +42,37 @@ async function enviarMensagem(telefone, texto) {
         'Content-Type': 'application/json'
       }
     });
-    console.log('📤 Mensagem enviada para:', telefone);
-  } catch(e) {
-    console.error('❌ Erro ao enviar:', e.response?.data || e.message);
+    
+    console.log('✅ MENSAGEM ENVIADA! Status:', resposta.status);
+    return true;
+  } catch (erro) {
+    console.error('❌ ERRO AO ENVIAR:');
+    console.error('Status:', erro.response?.status);
+    console.error('Detalhe:', erro.response?.data || erro.message);
+    return false;
   }
 }
 
-// Webhook — caminho correto!
+// Webhook — RECEBER mensagens
 app.post('/api/bot/webhook', async (req, res) => {
+  console.log('📥 MENSAGEM CHEGOU! Evento:', req.body?.event);
+  
   try {
     const evento = req.body;
-    console.log('📥 Evento recebido:', evento?.event);
 
-    // Só processa mensagens recebidas
     if (evento.event === 'messages.upsert' && evento.data?.message) {
       const msg = evento.data.message;
       
-      // Ignora mensagens enviadas pelo próprio bot
-      if (msg.fromMe) return res.sendStatus(200);
+      if (msg.fromMe) {
+        console.log('↩️ Mensagem do bot — ignorada');
+        return res.sendStatus(200);
+      }
 
       const telefone = msg.key.remoteJid.replace('@c.us', '');
       const textoRecebido = msg.text || '';
       
-      console.log(`💬 De ${telefone}: ${textoRecebido}`);
+      console.log(`💬 ${telefone}: ${textoRecebido}`);
 
-      // Processa a resposta no bot
       const resposta = await bot.processar(telefone, textoRecebido, pool);
       
       if (resposta) {
@@ -71,19 +81,21 @@ app.post('/api/bot/webhook', async (req, res) => {
     }
 
     res.sendStatus(200);
-  } catch(e) {
-    console.error('❌ Erro no webhook:', e.message);
+  } catch (erro) {
+    console.error('❌ ERRO NO WEBHOOK:', erro.message);
     res.sendStatus(500);
   }
 });
 
-// Rota de teste
+// Página de teste
 app.get('/', (req, res) => {
-  res.send('🤖 Bot da Marmitária está funcionando!');
+  res.send('🤖 Bot da Marmitária — ONLINE E FUNCIONANDO!');
 });
 
+// Iniciar Servidor
 const PORTA = process.env.PORT || 8080;
 app.listen(PORTA, () => {
-  console.log(`🚀 Servidor rodando na porta ${PORTA}`);
-  console.log(`🔗 Webhook: https://marmitaria-bot-1-4h2t.onrender.com/api/bot/webhook`);
+  console.log(`🚀 SERVIDOR RODANDO NA PORTA ${PORTA}`);
+  console.log(`🔗 Webhook: /api/bot/webhook`);
+  console.log(`🏪 Instância: ${process.env.EVO_INSTANCE}`);
 });
