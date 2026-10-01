@@ -1,40 +1,59 @@
-// ========== LÓGICA DO BOT — bot.js ==========
+const cardapio = `
+🍽️ *CARDÁPIO DO DIA*
+━━━━━━━━━━━━━━━━━━━━
+🥗 Salada Completa — R$ 12,00
+🍖 Carne de Sol com Arroz — R$ 25,00
+🐔 Frango Grelhado — R$ 22,00
+🍝 Macarrão ao Molho — R$ 18,00
+🥩 Feijoada Completa — R$ 28,00
+🧃 Suco Natural — R$ 6,00
+🥤 Refrigerante — R$ 5,00
+━━━━━━━━━━━━━━━━━━━━
+📲 Para pedir, diga o nome do prato + quantidade.
+💳 Aceitamos: Pix, Dinheiro, Cartão.
+🏠 Retirada no balcão.
+`;
 
-function processarMensagem(telefone, mensagem) {
-  const msg = mensagem.trim().toLowerCase();
+async function processar(telefone, mensagem, pool) {
+  const msg = mensagem.toLowerCase().trim();
 
   // Saudação
-  if (['oi','olá','ola','bom dia','boa tarde','boa noite','opa'].includes(msg)) {
-    return 'Olá! Tudo bem? 😋\nSeja bem-vindo(a) à Marmitaria!\n\nEscolha uma opção:\n1️⃣ Cardápio\n2️⃣ Fazer Pedido\n3️⃣ Horário de Funcionamento\n4️⃣ Falar com Atendente';
+  if (['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite'].includes(msg)) {
+    return `Olá! Seja bem-vindo(a) à Marmitária! 😊\n\n${cardapio}`;
   }
 
   // Cardápio
-  if (msg === '1' || msg === 'cardápio' || msg === 'cardapio') {
-    return '📋 *CARDÁPIO*\n\n🍽️ Prato Feito — R$ 18,00\n🥗 Salada Completa — R$ 12,00\n🍖 Feijoada — R$ 25,00\n🍹 Suco Natural — R$ 6,00\n🥤 Refrigerante — R$ 5,00\n\nDigite o nome do prato + quantidade.';
+  if (['cardápio', 'cardapio', 'menu', 'opções', 'preço', 'precos'].includes(msg)) {
+    return cardapio;
   }
 
   // Horário
-  if (msg === '3' || msg === 'horário' || msg === 'horario') {
-    return '🕐 *Funcionamento*\nSegunda a Sexta: 10h às 15h\nSábado: 11h às 14h\nDomingo: Fechado 🚫';
+  if (['horário', 'horario', 'funcionamento', 'abre', 'aberto'].includes(msg)) {
+    return '🕒 Funcionamos de Segunda a Sábado, das 10h às 14h.\nRetirada no balcão!';
   }
 
-  // Fazer Pedido
-  if (msg === '2' || msg.includes('pedido')) {
-    return 'Perfeito! 🥰\nMe diga o que deseja:\nExemplo: "1 Feijoada e 1 Suco"';
+  // Pedido
+  if (msg.includes('pedido') || msg.includes('quero') || msg.includes('vou querer')) {
+    return 'Perfeito! 🥳\nMe diga o nome do prato e a quantidade, por favor!';
   }
 
-  // Falar com Atendente
-  if (msg === '4' || msg.includes('atendente') || msg.includes('falar')) {
-    return 'Claro! 📞\nTransferindo para um atendente...\nAguarde um instante!';
+  // Fiado
+  if (['fiado', 'crédito', 'credito', 'conta'].includes(msg)) {
+    return '📋 Temos sistema de fiado sim!\nProcure o atendente no balcão para cadastrar. ✅';
   }
 
-  // Confirmar
-  if (msg.includes('confirmo') || msg.includes('confirmar')) {
-    return '✅ Pedido confirmado! Obrigado! 🎉\nRetirada em ~20 minutos no balcão!';
+  // Ifood
+  if (['ifood', 'i-food', 'entrega', 'pedir em casa'].includes(msg)) {
+    return '🚀 Estamos no iFood também!\nOu retire direto aqui na loja — mais rápido e sem taxa de entrega! 📦';
   }
 
-  // Padrão
-  return 'Desculpe, não entendi 😅\nEscolha:\n1️⃣ Cardápio\n2️⃣ Fazer Pedido\n3️⃣ Horário\n4️⃣ Falar com Atendente';
+  // Ajuda
+  if (['ajuda', 'socorro', 'comandos'].includes(msg)) {
+    return `Comandos que eu entendo:\n\n📋 "Cardápio" — ver opções\n🕒 "Horário" — funcionamento\n🛒 "Pedido" — fazer pedido\n💰 "Fiado" — crédito\n📦 "iFood" — entrega\n\nÉ só falar! 😊`;
+  }
+
+  // Resposta padrão
+  return `Desculpa, não entendi! 😅\n\nDiga "Cardápio" para ver nossas opções ou "Ajuda" para saber o que eu posso fazer!`;
 }
 
-module.exports = { processarMensagem };
+module.exports = { processar };
