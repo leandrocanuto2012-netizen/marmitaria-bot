@@ -1,96 +1,89 @@
 require('dotenv').config();
 const express = require('express');
+const { Pool } = require('pg');
 const axios = require('axios');
-const { processarMensagem } = require('./bot.js');
+const bot = require('./bot');
+
 const app = express();
-
-// ==============================================
-// ✅ PASSO 1 — JSON PRIMEIRO
-// ==============================================
 app.use(express.json());
+app.use(express.static('public'));
 
-// ==============================================
-// ✅ PASSO 2 — WEBHOOK ANTES DE TUDO! SEMPRE!
-// ==============================================
-app.post('/webhook', async (req, res) => {
-  console.log('\n' + '='.repeat(50));
-  console.log('📩 RECEBIDO /webhook —', new Date().toLocaleString('pt-BR'));
+// Conexão com o banco
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 
+async function testarBanco() {
+  try {
+    const c = await pool.connect();
+    console.log('✅ Banco conectado!');
+    c.release();
+  } catch(e) {
+    console.error('❌ ERRO NO BANCO:', e.message);
+  }
+}
+testarBanco();
+
+// Enviar mensagem pela Evolution
+async function enviarMensagem(telefone, texto) {
+  try {
+    const url = `${process.env.EVO_URL}/message/sendText/${process.env.EVO_INSTANCE}`;
+    await axios.post(url, {
+      number: telefone,
+      text: texto
+    }, {
+      headers: {
+        'apikey': process.env.EVO_KEY,
+        'Content-Type': 'application/json'
+      }
+    });
+    console.log('📤 Mensagem enviada para:', telefone);
+  } catch(e) {
+    console.error('❌ Erro ao enviar:', e.response?.data || e.message);
+  }
+}
+
+// Webhook — caminho correto!
+app.post('/api/bot/webhook', async (req, res) => {
   try {
     const evento = req.body;
+    console.log('📥 Evento recebido:', evento?.event);
 
-    if (evento.event === 'messages.upsert' && evento.data?.messages) {
-      for (const msg of evento.data.messages) {
-        if (msg.fromMe) {
-          console.log('↳ Mensagem do bot — ignorada');
-          continue;
-        }
+    // Só processa mensagens recebidas
+    if (evento.event === 'messages.upsert' && evento.data?.message) {
+      const msg = evento.data.message;
+      
+      // Ignora mensagens enviadas pelo próprio bot
+      if (msg.fromMe) return res.sendStatus(200);
 
-        const telefone = msg.key.remoteJid.replace('@s.whatsapp.net', '');
-        const texto = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
-        
-        if (!texto) {
-          console.log('↳ Sem texto — ignorada');
-          continue;
-        }
+      const telefone = msg.key.remoteJid.replace('@c.us', '');
+      const textoRecebido = msg.text || '';
+      
+      console.log(`💬 De ${telefone}: ${textoRecebido}`);
 
-        console.log(`📩 ${telefone}: "${texto}"`);
-
-        // Processa usando bot.js
-        const resposta = processarMensagem(telefone, texto);
-        console.log(`🤖 Resposta: "${resposta.substring(0,50)}..."`);
-
-        // Envia resposta
-        try {
-          await axios.post(
-            `${process.env.EVO_URL}/message/sendText/${process.env.EVO_INSTANCE}`,
-            { number: telefone, text: resposta },
-            { headers: { apikey: process.env.EVO_KEY, 'Content-Type': 'application/json' } }
-          );
-          console.log('✅ RESPOSTA ENVIADA! 🎉');
-        } catch (e) {
-          console.error('❌ Erro envio:', e.response?.status, e.response?.data || e.message);
-        }
+      // Processa a resposta no bot
+      const resposta = await bot.processar(telefone, textoRecebido, pool);
+      
+      if (resposta) {
+        await enviarMensagem(telefone, resposta);
       }
     }
 
-    res.status(200).send('OK');
-  } catch (e) {
-    console.error('❌ Erro geral:', e.message);
-    res.status(200).send('OK');
+    res.sendStatus(200);
+  } catch(e) {
+    console.error('❌ Erro no webhook:', e.message);
+    res.sendStatus(500);
   }
-  console.log('='.repeat(50) + '\n');
 });
 
-// ==============================================
-// ✅ PASSO 3 — PASTA public DEPOIS do webhook!
-// ==============================================
-app.use(express.static('public'));  // ← Cardápio HTML carrega AQUI, sem bloquear nada!
-
-// ==============================================
-// ✅ PASSO 4 — PÁGINA INICIAL
-// ==============================================
+// Rota de teste
 app.get('/', (req, res) => {
-  res.send(`
-    <html>
-      <body style="font-family:Arial; text-align:center; padding:50px; background:#fef6e9;">
-        <h1>🤖 marmita-bot-1 — ONLINE ✅</h1>
-        <p>Webhook funcionando: <code>/webhook</code></p>
-        <p>Cardápio disponível em: <a href="/cardapio.html">/cardapio.html</a></p>
-        <p>Evolution: ${process.env.EVO_URL}</p>
-      </body>
-    </html>
-  `);
+  res.send('🤖 Bot da Marmitária está funcionando!');
 });
 
-// ==============================================
-// ✅ PASSO 5 — INICIAR
-// ==============================================
 const PORTA = process.env.PORT || 8080;
 app.listen(PORTA, () => {
-  console.log('\n🚀 SERVIDOR RODANDO');
-  console.log(`🔗 Webhook: https://marmita-bot-1.onrender.com/webhook`);
-  console.log(`📂 Cardápio: https://marmita-bot-1.onrender.com/cardapio.html`);
-  console.log(`📡 Evolution: ${process.env.EVO_URL}`);
-  console.log('✅ Tudo pronto! 🎉\n');
+  console.log(`🚀 Servidor rodando na porta ${PORTA}`);
+  console.log(`🔗 Webhook: https://marmita-bot-1.onrender.com/api/bot/webhook`);
 });
