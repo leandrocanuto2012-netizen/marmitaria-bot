@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
-// Banco
+// Banco de Dados
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
@@ -25,7 +25,7 @@ async function testarBanco() {
 }
 testarBanco();
 
-// Enviar Mensagem
+// Enviar Mensagem WhatsApp
 async function enviarMensagem(telefone, texto) {
   try {
     const url = `${process.env.EVO_URL}/message/sendText/${process.env.EVO_INSTANCE}`;
@@ -53,42 +53,44 @@ async function enviarMensagem(telefone, texto) {
   }
 }
 
-// Webhook — CORRIGIDO!
-app.post('/api/bot/webhook', async (req, res) => {
-  console.log('📥 MENSAGEM CHEGOU! Evento:', req.body?.event);
-  console.log('📦 Corpo completo:', JSON.stringify(req.body, null, 2)); // Mostra TUDO que chegou
+// ✅ CAMINHO NOVO — /marmitaria/webhook
+app.post('/marmitaria/webhook', async (req, res) => {
+  console.log('📥 MENSAGEM CHEGOU!');
+  console.log('📦 Evento:', req.body?.event);
+  console.log('🏪 Instância:', req.body?.instance);
   
   try {
     const evento = req.body;
 
     if (evento.event === 'messages.upsert') {
-      // 🔑 CORREÇÃO: mensagens vem dentro de "messages" (plural)
-      const mensagens = evento.data?.messages || [];
+      // Pega a mensagem — formato correto da Evolution
+      const msg = evento.data?.message;
       
-      for (const msg of mensagens) {
-        if (!msg) continue;
-        
-        if (msg.fromMe) {
-          console.log('↩️ Mensagem do bot — ignorada');
-          continue;
-        }
+      if (!msg) {
+        console.log('⚠️ Mensagem vazia');
+        return res.sendStatus(200);
+      }
 
-        // ✅ Agora pega do lugar CERTO
-        const telefone = msg.key?.remoteJid?.replace('@c.us', '');
-        const textoRecebido = msg.message?.conversation || msg.text || '';
-        
-        if (!telefone) {
-          console.log('⚠️ Telefone não encontrado!');
-          continue;
-        }
-        
-        console.log(`💬 ${telefone}: ${textoRecebido}`);
+      // Ignora mensagens enviadas pelo próprio bot
+      if (msg.key?.fromMe) {
+        console.log('↩️ Mensagem do bot — ignorada');
+        return res.sendStatus(200);
+      }
 
-        const resposta = await bot.processar(telefone, textoRecebido, pool);
-        
-        if (resposta) {
-          await enviarMensagem(telefone, resposta);
-        }
+      const telefone = msg.key?.remoteJid?.replace('@c.us', '');
+      const textoRecebido = msg.message?.conversation || msg.text || '';
+      
+      if (!telefone) {
+        console.log('⚠️ Telefone não encontrado');
+        return res.sendStatus(200);
+      }
+      
+      console.log(`💬 ${telefone}: ${textoRecebido}`);
+
+      const resposta = await bot.processar(telefone, textoRecebido, pool);
+      
+      if (resposta) {
+        await enviarMensagem(telefone, resposta);
       }
     }
 
@@ -101,13 +103,13 @@ app.post('/api/bot/webhook', async (req, res) => {
 
 // Página de teste
 app.get('/', (req, res) => {
-  res.send('🤖 Bot da Marmitária — ONLINE E FUNCIONANDO!');
+  res.send('🤖 Bot da Marmitária — ONLINE! Caminho: /marmitaria/webhook');
 });
 
 // Iniciar Servidor
 const PORTA = process.env.PORT || 8080;
 app.listen(PORTA, () => {
   console.log(`🚀 SERVIDOR RODANDO NA PORTA ${PORTA}`);
-  console.log(`🔗 Webhook: /api/bot/webhook`);
+  console.log(`🔗 Webhook: /marmitaria/webhook`);
   console.log(`🏪 Instância: ${process.env.EVO_INSTANCE}`);
 });
