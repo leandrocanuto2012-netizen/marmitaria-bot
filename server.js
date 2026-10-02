@@ -25,13 +25,23 @@ async function testarBanco() {
 }
 testarBanco();
 
-// Enviar Mensagem WhatsApp
+// Enviar Mensagem — escolhe automaticamente qual usar
 async function enviarMensagem(telefone, texto) {
   try {
-    const url = `${process.env.EVO_URL}/message/sendText/${process.env.EVO_INSTANCE}`;
+    // Se tiver ID, usa ele; senão usa o nome
+    const instancia = process.env.EVO_INSTANCE_ID || process.env.EVO_INSTANCE_NOME;
     
-    console.log('📤 Enviando para:', url);
-    console.log('📤 Telefone:', telefone);
+    if (!instancia) {
+      console.error('❌ Nenhuma instância configurada!');
+      return false;
+    }
+
+    const url = `${process.env.EVO_URL}/message/sendText/${instancia}`;
+    
+    console.log('📤 --- ENVIANDO ---');
+    console.log('📤 Usando:', instancia);
+    console.log('📤 Fonte:', process.env.EVO_INSTANCE_ID ? 'ID' : 'Nome');
+    console.log('📤 URL:', url);
     
     const resposta = await axios.post(url, {
       number: telefone,
@@ -43,51 +53,38 @@ async function enviarMensagem(telefone, texto) {
       }
     });
     
-    console.log('✅ MENSAGEM ENVIADA! Status:', resposta.status);
+    console.log('✅ ENVIADO! Status:', resposta.status);
     return true;
   } catch (erro) {
-    console.error('❌ ERRO AO ENVIAR:');
+    console.error('❌ ERRO:');
     console.error('Status:', erro.response?.status);
     console.error('Detalhe:', erro.response?.data || erro.message);
     return false;
   }
 }
 
-// ✅ CAMINHO NOVO — /marmitaria/webhook
+// Webhook
 app.post('/marmitaria/webhook', async (req, res) => {
   console.log('📥 MENSAGEM CHEGOU!');
-  console.log('📦 Evento:', req.body?.event);
-  console.log('🏪 Instância:', req.body?.instance);
   
   try {
     const evento = req.body;
 
     if (evento.event === 'messages.upsert') {
-      // Pega a mensagem — formato correto da Evolution
       const msg = evento.data?.message;
       
-      if (!msg) {
-        console.log('⚠️ Mensagem vazia');
-        return res.sendStatus(200);
-      }
-
-      // Ignora mensagens enviadas pelo próprio bot
-      if (msg.key?.fromMe) {
-        console.log('↩️ Mensagem do bot — ignorada');
+      if (!msg || msg.key?.fromMe) {
         return res.sendStatus(200);
       }
 
       const telefone = msg.key?.remoteJid?.replace('@c.us', '');
-      const textoRecebido = msg.message?.conversation || msg.text || '';
+      const texto = msg.message?.conversation || msg.text || '';
       
-      if (!telefone) {
-        console.log('⚠️ Telefone não encontrado');
-        return res.sendStatus(200);
-      }
+      if (!telefone) return res.sendStatus(200);
       
-      console.log(`💬 ${telefone}: ${textoRecebido}`);
+      console.log(`💬 ${telefone}: ${texto}`);
 
-      const resposta = await bot.processar(telefone, textoRecebido, pool);
+      const resposta = await bot.processar(telefone, texto, pool);
       
       if (resposta) {
         await enviarMensagem(telefone, resposta);
@@ -96,20 +93,20 @@ app.post('/marmitaria/webhook', async (req, res) => {
 
     res.sendStatus(200);
   } catch (erro) {
-    console.error('❌ ERRO NO WEBHOOK:', erro.message);
+    console.error('❌ ERRO:', erro.message);
     res.sendStatus(500);
   }
 });
 
-// Página de teste
 app.get('/', (req, res) => {
-  res.send('🤖 Bot da Marmitária — ONLINE! Caminho: /marmitaria/webhook');
+  const instancia = process.env.EVO_INSTANCE_ID || process.env.EVO_INSTANCE_NOME;
+  res.send(`🤖 Bot da Marmitária — ONLINE!<br>Usando: ${instancia}`);
 });
 
-// Iniciar Servidor
 const PORTA = process.env.PORT || 8080;
 app.listen(PORTA, () => {
-  console.log(`🚀 SERVIDOR RODANDO NA PORTA ${PORTA}`);
+  const instancia = process.env.EVO_INSTANCE_ID || process.env.EVO_INSTANCE_NOME;
+  console.log(`🚀 SERVIDOR NA PORTA ${PORTA}`);
+  console.log(`🏪 Instância: ${instancia}`);
   console.log(`🔗 Webhook: /marmitaria/webhook`);
-  console.log(`🏪 Instância: ${process.env.EVO_INSTANCE}`);
 });
