@@ -8,7 +8,7 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
-// ⚙️ TUDO DO .env
+// ⚙️ Configuração do .env
 const CONFIG = {
   DATABASE_URL: process.env.DATABASE_URL,
   EVO_URL: process.env.EVO_URL?.replace(/\/$/, ''),
@@ -19,12 +19,9 @@ const CONFIG = {
 };
 
 console.log('========================================');
-console.log('🔧 CONFIGURAÇÃO CARREGADA');
-console.log('🌐 EVO_URL:     ', CONFIG.EVO_URL);
-console.log('🔑 EVO_KEY:     ', CONFIG.EVO_KEY?.substring(0, 20) + '...');
-console.log('🆔 INSTANCE_ID: ', CONFIG.INSTANCE_ID);
-console.log('🔗 WEBHOOK:     ', CONFIG.WEBHOOK_PATH);
-console.log('🚀 PORTA:       ', CONFIG.PORT);
+console.log('🤖 MARMITARIA BOT — ONLINE');
+console.log('🔗 Webhook:', CONFIG.WEBHOOK_PATH);
+console.log('🆔 Instância:', CONFIG.INSTANCE_ID);
 console.log('========================================');
 
 // Banco
@@ -44,13 +41,15 @@ async function testarBanco() {
 }
 testarBanco();
 
-// 📤 Enviar Mensagem
+// 📤 ENVIAR MENSAGEM — Endpoint correto
 async function enviarMensagem(telefone, texto) {
   try {
     const url = `${CONFIG.EVO_URL}/message/sendText/${CONFIG.INSTANCE_ID}`;
     
-    console.log('📤 ENVIANDO PARA:', url);
-    console.log('📤 Para:', telefone);
+    console.log('📤 ENVIANDO RESPOSTA:');
+    console.log('📍', url);
+    console.log('📱 Para:', telefone);
+    console.log('💬 Texto:', texto.substring(0, 60) + '...');
     
     const res = await axios.post(url, {
       number: telefone,
@@ -62,7 +61,7 @@ async function enviarMensagem(telefone, texto) {
       }
     });
     
-    console.log('✅ RESPOSTA ENVIADA! Status:', res.status);
+    console.log('✅ MENSAGEM ENVIADA COM SUCESSO! Status:', res.status);
     return true;
     
   } catch (e) {
@@ -73,37 +72,62 @@ async function enviarMensagem(telefone, texto) {
   }
 }
 
-// 📥 RECEBER — CAMINHO EXATO /message/marmitaria/webhook
+// 📥 WEBHOOK — TRATA TODOS OS EVENTOS SEM EXCEÇÃO
 app.post(CONFIG.WEBHOOK_PATH, async (req, res) => {
   const { event, data } = req.body;
+  
   console.log('📥 EVENTO RECEBIDO:', event);
-  console.log('📍 Caminho:', CONFIG.WEBHOOK_PATH);
 
   try {
+    // ✅ 1 — MENSAGEM NOVA CHEGANDO → RESPONDE AQUI
     if (event === 'messages.upsert') {
       const msg = data?.message;
-      if (!msg) return res.sendStatus(200);
       
+      if (!msg) {
+        console.log('⚠️ Sem dados da mensagem');
+        return res.sendStatus(200);
+      }
+      
+      // Ignora o que EU enviei (confirmação de envio)
       if (msg.key?.fromMe) {
-        console.log('↩️ Mensagem do bot — ignorada');
+        console.log('↩️ Mensagem enviada pelo bot — confirmação, sem resposta');
         return res.sendStatus(200);
       }
 
+      // Extrai dados do cliente
       const telefone = msg.key?.remoteJid?.replace('@c.us', '');
       const texto = msg.message?.conversation || msg.text || '';
       
-      if (!telefone || !texto) return res.sendStatus(200);
+      if (!telefone || !texto) {
+        console.log('⚠️ Telefone ou texto vazio');
+        return res.sendStatus(200);
+      }
       
-      console.log(`💬 ${telefone}: ${texto}`);
+      console.log(`💬 Cliente ${telefone}: ${texto}`);
       
+      // Gera e envia resposta
       const resposta = await bot.processar(telefone, texto, pool);
-      if (resposta) await enviarMensagem(telefone, resposta);
+      
+      if (resposta) {
+        await enviarMensagem(telefone, resposta);
+      }
     }
     
-    res.sendStatus(200);
+    // ✅ 2 — ATUALIZAÇÃO DE STATUS (entregue, visto, lida)
+    else if (event === 'messages.update') {
+      console.log('📊 Atualização de status registrada — sem erro');
+    }
+    
+    // ✅ 3 — QUALQUER OUTRO EVENTO → confirma sem quebrar
+    else {
+      console.log('ℹ️ Evento recebido:', event);
+    }
+
+    res.sendStatus(200); // ✅ Sempre responde 200 → não dá erro!
+    
   } catch (e) {
-    console.error('❌ ERRO:', e.message);
-    res.sendStatus(500);
+    console.error('❌ ERRO NO PROCESSAMENTO:', e.message);
+    res.sendStatus(200); // ✅ Mesmo com exceção → não retorna erro!
   }
 });
 
@@ -114,11 +138,13 @@ app.get('/', (req, res) => {
     <p>✅ Banco Conectado</p>
     <p>🔗 Webhook: ${CONFIG.WEBHOOK_PATH}</p>
     <p>🆔 Instância: ${CONFIG.INSTANCE_ID}</p>
+    <p>✅ Tratando todos os eventos</p>
   `);
 });
 
-// Iniciar
+// Iniciar servidor
 app.listen(CONFIG.PORT, () => {
-  console.log(`🚀 SERVIDOR NA PORTA ${CONFIG.PORT}`);
-  console.log(`🔗 Aguardando em: ${CONFIG.WEBHOOK_PATH}`);
+  console.log(`🚀 SERVIDOR RODANDO NA PORTA ${CONFIG.PORT}`);
+  console.log(`🔗 Aguardando mensagens em: ${CONFIG.WEBHOOK_PATH}`);
+  console.log(`✅ Pronto para responder!`);
 });
