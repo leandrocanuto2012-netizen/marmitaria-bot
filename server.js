@@ -8,25 +8,23 @@ const app = express();
 app.use(express.json());
 app.use(express.static('public'));
 
-// ⚙️ Configuração do .env
-const CONFIG = {
-  DATABASE_URL: process.env.DATABASE_URL,
-  EVO_URL: process.env.EVO_URL?.replace(/\/$/, ''),
-  EVO_KEY: process.env.EVO_KEY,
-  INSTANCE_ID: process.env.INSTANCE_ID,
-  WEBHOOK_PATH: process.env.WEBHOOK_PATH || '/message/marmitaria/webhook',
-  PORT: process.env.PORT || 8080
-};
+// ⚙️ Variáveis
+const DATABASE_URL = process.env.DATABASE_URL;
+const EVOURL = process.env.EVOURL?.replace(/\/$/, '');
+const APIKEY = process.env.APIKEY;
+const INSTANCEID = process.env.INSTANCEID;
+const WEBHOOKPATH = process.env.WEBHOOKPATH || '/message/marmitaria/webhook';
+const PORT = process.env.PORT || 8080;
 
 console.log('========================================');
-console.log('🤖 MARMITARIA BOT — ONLINE');
-console.log('🔗 Webhook:', CONFIG.WEBHOOK_PATH);
-console.log('🆔 Instância:', CONFIG.INSTANCE_ID);
+console.log('🤖 MARMITARIA BOT');
+console.log('🆔 INSTANCE_ID:', INSTANCEID || '❌ FALTA');
+console.log('🔗 WEBHOOK:', WEBHOOKPATH);
 console.log('========================================');
 
 // Banco
 const pool = new Pool({
-  connectionString: CONFIG.DATABASE_URL,
+  connectionString: DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
@@ -41,29 +39,42 @@ async function testarBanco() {
 }
 testarBanco();
 
-// 📤 ENVIAR MENSAGEM — Endpoint correto
+// 🔧 FUNÇÃO: LIMPAR E FORMATAR NÚMERO
+function limparTelefone(numero) {
+  if (!numero) return null;
+  // Remove tudo que não é número
+  return numero.toString().replace(/\D/g, '');
+}
+
+// 📤 ENVIAR MENSAGEM
 async function enviarMensagem(telefone, texto) {
+  if (!INSTANCEID) {
+    console.error('⛔ INSTANCE_ID NÃO CONFIGURADA!');
+    return false;
+  }
+
+  const numeroLimpo = limparTelefone(telefone);
+  if (!numeroLimpo) {
+    console.error('⛔ Telefone inválido:', telefone);
+    return false;
+  }
+
   try {
-    const url = `${CONFIG.EVO_URL}/message/sendText/${CONFIG.INSTANCE_ID}`;
-    
-    console.log('📤 ENVIANDO RESPOSTA:');
-    console.log('📍', url);
-    console.log('📱 Para:', telefone);
-    console.log('💬 Texto:', texto.substring(0, 60) + '...');
+    const url = `${EVOURL}/message/sendText/${INSTANCEID}`;
+    console.log('📤 ENVIANDO PARA:', numeroLimpo);
     
     const res = await axios.post(url, {
-      number: telefone,
+      number: numeroLimpo,
       text: texto
     }, {
       headers: {
-        apikey: CONFIG.EVO_KEY,
+        apikey: APIKEY,
         'Content-Type': 'application/json'
       }
     });
     
-    console.log('✅ MENSAGEM ENVIADA COM SUCESSO! Status:', res.status);
+    console.log('✅ ENVIADO! Status:', res.status);
     return true;
-    
   } catch (e) {
     console.error('❌ ERRO NO ENVIO:');
     console.error('Status:', e.response?.status);
@@ -72,40 +83,62 @@ async function enviarMensagem(telefone, texto) {
   }
 }
 
-// 📥 WEBHOOK — TRATA TODOS OS EVENTOS SEM EXCEÇÃO
-app.post(CONFIG.WEBHOOK_PATH, async (req, res) => {
+// 📥 RECEBER — PEGA TELEFONE DE TODOS OS LUGARES POSSÍVEIS
+app.post(WEBHOOKPATH, async (req, res) => {
   const { event, data } = req.body;
-  
-  console.log('📥 EVENTO RECEBIDO:', event);
+  console.log('📥 EVENTO:', event);
 
   try {
-    // ✅ 1 — MENSAGEM NOVA CHEGANDO → RESPONDE AQUI
     if (event === 'messages.upsert') {
       const msg = data?.message;
-      
       if (!msg) {
-        console.log('⚠️ Sem dados da mensagem');
-        return res.sendStatus(200);
-      }
-      
-      // Ignora o que EU enviei (confirmação de envio)
-      if (msg.key?.fromMe) {
-        console.log('↩️ Mensagem enviada pelo bot — confirmação, sem resposta');
+        console.log('⚠️ Sem mensagem');
         return res.sendStatus(200);
       }
 
-      // Extrai dados do cliente
-      const telefone = msg.key?.remoteJid?.replace('@c.us', '');
-      const texto = msg.message?.conversation || msg.text || '';
-      
-      if (!telefone || !texto) {
-        console.log('⚠️ Telefone ou texto vazio');
+      // Ignora mensagens do bot
+      if (msg.key?.fromMe) {
+        console.log('↩️ Mensagem do bot — ignorada');
         return res.sendStatus(200);
       }
+
+      // 🔍 PEGA O TELEFONE — TENTA TODOS OS CAMINHOS!
+      let telefone = null;
       
-      console.log(`💬 Cliente ${telefone}: ${texto}`);
-      
-      // Gera e envia resposta
+      // Formato padrão
+      if (msg.key?.remoteJid) {
+        telefone = limparTelefone(msg.key.remoteJid);
+        console.log('📍 De msg.key.remoteJid →', telefone);
+      }
+      // Formato com lid
+      else if (msg.key?.remoteJid?.includes('lid')) {
+        telefone = limparTelefone(data?.remoteJid || data?.id || msg.participant);
+        console.log('📍 Formato lid detectado →', telefone);
+      }
+      // Outros caminhos possíveis
+      else if (data?.remoteJid) {
+        telefone = limparTelefone(data.remoteJid);
+        console.log('📍 De data.remoteJid →', telefone);
+      }
+      else if (msg.participant) {
+        telefone = limparTelefone(msg.participant);
+        console.log('📍 De msg.participant →', telefone);
+      }
+
+      // Extrai o texto
+      const texto = msg.message?.conversation || 
+                    msg.message?.extendedTextMessage?.text || 
+                    data?.text || 
+                    '';
+
+      console.log(`💬 Telefone: ${telefone} | Mensagem: ${texto.substring(0, 40)}...`);
+
+      if (!telefone || !texto) {
+        console.log('⚠️ Falta telefone ou texto');
+        return res.sendStatus(200);
+      }
+
+      // Processa e responde
       const resposta = await bot.processar(telefone, texto, pool);
       
       if (resposta) {
@@ -113,38 +146,28 @@ app.post(CONFIG.WEBHOOK_PATH, async (req, res) => {
       }
     }
     
-    // ✅ 2 — ATUALIZAÇÃO DE STATUS (entregue, visto, lida)
+    // Atualização de status
     else if (event === 'messages.update') {
-      console.log('📊 Atualização de status registrada — sem erro');
-    }
-    
-    // ✅ 3 — QUALQUER OUTRO EVENTO → confirma sem quebrar
-    else {
-      console.log('ℹ️ Evento recebido:', event);
+      console.log('📊 Atualização de status');
     }
 
-    res.sendStatus(200); // ✅ Sempre responde 200 → não dá erro!
-    
+    res.sendStatus(200);
   } catch (e) {
-    console.error('❌ ERRO NO PROCESSAMENTO:', e.message);
-    res.sendStatus(200); // ✅ Mesmo com exceção → não retorna erro!
+    console.error('❌ ERRO:', e.message);
+    res.sendStatus(200);
   }
 });
 
-// Página de verificação
 app.get('/', (req, res) => {
   res.send(`
     <h2>🤖 Marmitária Bot — ONLINE</h2>
-    <p>✅ Banco Conectado</p>
-    <p>🔗 Webhook: ${CONFIG.WEBHOOK_PATH}</p>
-    <p>🆔 Instância: ${CONFIG.INSTANCE_ID}</p>
-    <p>✅ Tratando todos os eventos</p>
+    <p>🆔 Instância: ${INSTANCEID || '❌ FALTA'}</p>
+    <p>🔗 Webhook: ${WEBHOOKPATH}</p>
+    <p>✅ Pronto para capturar telefone de qualquer formato</p>
   `);
 });
 
-// Iniciar servidor
-app.listen(CONFIG.PORT, () => {
-  console.log(`🚀 SERVIDOR RODANDO NA PORTA ${CONFIG.PORT}`);
-  console.log(`🔗 Aguardando mensagens em: ${CONFIG.WEBHOOK_PATH}`);
-  console.log(`✅ Pronto para responder!`);
+app.listen(PORT, () => {
+  console.log(`🚀 Rodando na porta ${PORT}`);
+  console.log(`🔗 Aguardando em: ${WEBHOOKPATH}`);
 });
