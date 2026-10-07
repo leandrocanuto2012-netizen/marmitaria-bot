@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Marmitária — Sabor Caseiro</title>
+  <title>Marmitária — Sistema de Gestão</title>
   <style>
     * {
       margin: 0;
@@ -11,90 +11,188 @@
       font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
       box-sizing: border-box;
     }
+
+    :root {
+      --cor-primaria: #d35400;
+      --cor-sucesso: #27ae60;
+      --cor-aviso: #f39c12;
+      --cor-info: #3498db;
+      --cor-roxo: #9b59b6;
+      --cor-cinza: #95a5a6;
+      --fundo: #fef9f3;
+      --cartao: #ffffff;
+      --texto: #2d3436;
+      --claro: #f8f4ee;
+    }
+
     body {
-      background: linear-gradient(135deg, #fef6e4 0%, #fff3e0 100%);
+      background: linear-gradient(135deg, #fef9f3 0%, #fdf2e3 100%);
       min-height: 100vh;
       padding: 20px;
+      color: var(--texto);
     }
+
     .container {
-      max-width: 900px;
+      max-width: 1000px;
       margin: 0 auto;
     }
+
     header {
       text-align: center;
-      padding: 30px 20px;
-      margin-bottom: 30px;
+      margin-bottom: 35px;
+      padding-top: 10px;
     }
-    h1 {
-      color: #d35400;
-      font-size: 2.5rem;
-      margin-bottom: 10px;
+
+    header h1 {
+      font-size: 2.2em;
+      color: var(--cor-primaria);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
     }
-    .subtitulo {
+
+    header p {
       color: #7f8c8d;
-      font-size: 1.1rem;
+      margin-top: 8px;
+      font-size: 1.05em;
     }
+
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 20px;
-      margin-bottom: 40px;
+      margin-bottom: 30px;
     }
+
     .card {
-      background: white;
-      padding: 25px;
+      background: var(--cartao);
       border-radius: 16px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      padding: 25px;
       text-decoration: none;
-      transition: transform 0.2s, box-shadow 0.2s;
+      color: inherit;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      transition: all 0.3s ease;
+      border-left: 4px solid transparent;
+      cursor: pointer;
     }
+
     .card:hover {
       transform: translateY(-4px);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.1);
     }
-    .card h2 {
-      font-size: 1.3rem;
-      margin-bottom: 8px;
-      color: #2d3436;
+
+    .card.primaria { border-color: var(--cor-primaria); }
+    .card.sucesso  { border-color: var(--cor-sucesso); }
+    .card.aviso    { border-color: var(--cor-aviso); }
+    .card.info     { border-color: var(--cor-info); }
+    .card.roxo     { border-color: var(--cor-roxo); }
+    .card.cinza    { border-color: var(--cor-cinza); }
+
+    .card-icone {
+      font-size: 2.2em;
+      margin-bottom: 10px;
     }
-    .card p {
+
+    .card-titulo {
+      font-size: 1.25em;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    .card-desc {
       color: #7f8c8d;
-      font-size: 0.95rem;
+      font-size: 0.9em;
+      line-height: 1.4;
     }
-    .card.cliente { border-left: 5px solid #d35400; }
-    .card.pdv { border-left: 5px solid #27ae60; }
-    .card.estoque { border-left: 5px solid #3498db; }
-    .card.pedidos { border-left: 5px solid #9b59b6; }
-    .card.fornecedores { border-left: 5px solid #e67e22; }
-    .icone { font-size: 2rem; margin-bottom: 10px; }
-    .status-bar {
-      background: white;
-      padding: 20px;
-      border-radius: 12px;
-      margin-top: 20px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+
+    .resumo {
+      background: var(--cartao);
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      margin-bottom: 30px;
     }
-    .status-bar h3 {
-      margin-bottom: 12px;
-      color: #2d3436;
+
+    .resumo h2 {
+      font-size: 1.3em;
+      margin-bottom: 20px;
+      color: var(--cor-primaria);
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
-    .status-item {
+
+    .resumo-linha {
       display: flex;
       justify-content: space-between;
-      padding: 8px 0;
-      border-bottom: 1px solid #f0f0f0;
+      align-items: center;
+      padding: 14px 0;
+      border-bottom: 1px solid #f0e6d8;
     }
-    .status-item:last-child { border-bottom: none; }
-    .valor-destaque {
-      font-weight: bold;
-      color: #27ae60;
-      font-size: 1.1rem;
+
+    .resumo-linha:last-child {
+      border-bottom: none;
     }
+
+    .resumo-label {
+      font-weight: 500;
+      color: #555;
+    }
+
+    .resumo-valor {
+      font-weight: 700;
+      font-size: 1.1em;
+    }
+
+    .valor-verde { color: var(--cor-sucesso); }
+    .valor-prim  { color: var(--cor-primaria); }
+    .status-indicador {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+    }
+    .ponto {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--cor-sucesso);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
     footer {
       text-align: center;
-      margin-top: 40px;
-      color: #95a5a6;
-      font-size: 0.85rem;
+      margin-top: 20px;
+      padding-top: 20px;
+      color: #999;
+      font-size: 0.85em;
+    }
+
+    .botoes {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .botao-secundario {
+      padding: 10px 16px;
+      border-radius: 8px;
+      background: var(--claro);
+      color: var(--cor-primaria);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.9em;
+      transition: background 0.2s;
+    }
+
+    .botao-secundario:hover {
+      background: #f6e7d4;
     }
   </style>
 </head>
@@ -102,67 +200,73 @@
   <div class="container">
     <header>
       <h1>🍽️ Marmitária</h1>
-      <p class="subtitulo">Sabor caseiro, feito com carinho</p>
+      <p>Sistema de Gestão — Cardápio • Vendas • Caixa • Estoque</p>
     </header>
 
-    <div class="grid">
-      <!-- Área do Cliente -->
-      <a href="cardapio.html" class="card cliente">
-        <div class="icone">📋</div>
-        <h2>Cardápio Digital</h2>
-        <p>Ver pratos e fazer pedido</p>
-      </a>
-
-      <a href="pedido.html" class="card cliente">
-        <div class="icone">🛒</div>
-        <h2>Meu Pedido</h2>
-        <p>Finalizar compra</p>
-      </a>
-
-      <!-- Área Interna / PDV -->
-      <a href="pdv/caixa.html" class="card pdv">
-        <div class="icone">💰</div>
-        <h2>Caixa / PDV</h2>
-        <p>Abertura, fechamento e vendas</p>
-      </a>
-
-      <a href="pdv/vendas.html" class="card pedidos">
-        <div class="icone">📋</div>
-        <h2>Pedidos</h2>
-        <p>Acompanhar e atualizar status</p>
-      </a>
-
-      <a href="pdv/estoque.html" class="card estoque">
-        <div class="icone">📦</div>
-        <h2>Estoque</h2>
-        <p>Cadastrar e controlar produtos</p>
-      </a>
-
-      <a href="pdv/fornecedores.html" class="card fornecedores">
-        <div class="icone">🤝</div>
-        <h2>Fornecedores</h2>
-        <p>Cadastrar e gerenciar fornecedores</p>
-      </a>
+    <!-- RESUMO -->
+    <div class="resumo">
+      <h2>📊 Resumo do Dia</h2>
+      <div class="resumo-linha">
+        <span class="resumo-label">Vendas Hoje</span>
+        <span class="resumo-valor valor-verde" id="vendasHoje">R$ 0,00</span>
+      </div>
+      <div class="resumo-linha">
+        <span class="resumo-label">Pedidos Pendentes</span>
+        <span class="resumo-valor valor-prim" id="pendentes">0</span>
+      </div>
+      <div class="resumo-linha">
+        <span class="resumo-label">Status do Caixa</span>
+        <span class="resumo-valor status-indicador" id="statusCaixa">
+          <span class="ponto"></span> Carregando...
+        </span>
+      </div>
+      <div class="botoes">
+        <a href="pdv/analise-vendas.html" class="botao-secundario">📈 Análise de Vendas</a>
+        <a href="pdv/calculadora-insumos.html" class="botao-secundario">🧮 Custos & Insumos</a>
+      </div>
     </div>
 
-    <div class="status-bar">
-      <h3>📊 Resumo do Dia</h3>
-      <div class="status-item">
-        <span>Vendas Hoje</span>
-        <span class="valor-destaque" id="vendasHoje">R$ 0,00</span>
-      </div>
-      <div class="status-item">
-        <span>Pedidos Pendentes</span>
-        <span id="pendentes">0</span>
-      </div>
-      <div class="status-item">
-        <span>Status do Caixa</span>
-        <span id="statusCaixa">—</span>
-      </div>
+    <!-- GRID DE MÓDULOS -->
+    <div class="grid">
+      <a href="cardapio.html" class="card primaria">
+        <div class="card-icone">📋</div>
+        <div class="card-titulo">Cardápio Digital</div>
+        <div class="card-desc">Visualização dos pratos e pedidos dos clientes</div>
+      </a>
+
+      <a href="pdv/caixa.html" class="card sucesso">
+        <div class="card-icone">💰</div>
+        <div class="card-titulo">Caixa / PDV</div>
+        <div class="card-desc">Abertura, fechamento, lançamentos manuais e cupom</div>
+      </a>
+
+      <a href="pdv/vendas.html" class="card aviso">
+        <div class="card-icone">🛒</div>
+        <div class="card-titulo">Pedidos</div>
+        <div class="card-desc">Acompanhar e atualizar status dos pedidos</div>
+      </a>
+
+      <a href="pdv/estoque.html" class="card info">
+        <div class="card-icone">📦</div>
+        <div class="card-titulo">Estoque</div>
+        <div class="card-desc">Cadastrar pratos e controlar quantidades</div>
+      </a>
+
+      <a href="pdv/fornecedores.html" class="card roxo">
+        <div class="card-icone">🤝</div>
+        <div class="card-titulo">Fornecedores</div>
+        <div class="card-desc">Cadastro e gestão de fornecedores</div>
+      </a>
+
+      <a href="pdv/analise-vendas.html" class="card cinza">
+        <div class="card-icone">📊</div>
+        <div class="card-titulo">Relatórios</div>
+        <div class="card-desc">Comparativo de vendas por dia da semana</div>
+      </a>
     </div>
 
     <footer>
-      <p>© 2026 Marmitária — Sistema completo com Bot WhatsApp</p>
+      © 2026 Marmitária — Sistema completo com Bot WhatsApp
     </footer>
   </div>
 
@@ -171,26 +275,35 @@
       try {
         const res = await fetch('/api/resumo');
         const dados = await res.json();
-        
-        document.getElementById('vendasHoje').innerText = 
-          `R$ ${(dados.vendasHoje || 0).toFixed(2).replace('.', ',')}`;
-        
-        document.getElementById('statusCaixa').innerText = 
-          dados.caixaAberto 
-            ? `<span style="color:#27ae60; font-weight:bold;">🟢 Aberto — ${dados.caixaAberto.operador}</span>`
-            : '<span style="color:#e74c3c;">🔴 Fechado</span>';
 
-        const pedidosRes = await fetch('/api/pedidos');
-        const pedidos = await pedidosRes.json();
-        const pendentes = pedidos.filter(p => ['recebido', 'preparando'].includes(p.status)).length;
-        document.getElementById('pendentes').innerText = pendentes;
+        // Vendas do dia
+        const hoje = new Date().toISOString().split('T')[0];
+        const vendasHoje = (dados.pedidos || []).filter(p => 
+          p.created_at.startsWith(hoje) && p.status === 'entregue'
+        );
+        const total = vendasHoje.reduce((s, p) => s + parseFloat(p.valor_total || 0), 0);
+        document.getElementById('vendasHoje').textContent = `R$ ${total.toFixed(2)}`;
+
+        // Pendentes
+        const pendentes = (dados.pedidos || []).filter(p => 
+          p.status !== 'entregue' && p.status !== 'cancelado'
+        ).length;
+        document.getElementById('pendentes').textContent = pendentes;
+
+        // Status do Caixa
+        const elStatus = document.getElementById('statusCaixa');
+        if (dados.caixaAberto) {
+          elStatus.innerHTML = `<span class="ponto"></span> Aberto — ${dados.caixaAberto.operador}`;
+        } else {
+          elStatus.innerHTML = `<span class="ponto" style="background:#e74c3c;"></span> Fechado`;
+        }
       } catch (e) {
-        console.log('Aguardando servidor...');
+        console.error('Resumo:', e);
       }
     }
 
     carregarResumo();
-    setInterval(carregarResumo, 30000);
+    setInterval(carregarResumo, 60000); // Atualiza a cada minuto
   </script>
 </body>
 </html>
