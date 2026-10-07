@@ -1,1 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PDV — Caixa</title>
+  <style>
+    * {margin:0; padding:0; font-family: system-ui; box-sizing: border-box;}
+    body {background: #f5f5f5; padding: 20px; max-width: 900px; margin: 0 auto;}
+    h1 {color: #2d3436; margin-bottom: 20px;}
+    .card {background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);}
+    input, button {padding: 12px; margin: 5px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px;}
+    button {background: #27ae60; color: white; border: none; cursor: pointer; font-weight: bold;}
+    button.vermelho {background: #e74c3c;}
+    button.azul {background: #3498db;}
+    .valor {font-size: 28px; font-weight: bold; color: #27ae60; margin: 10px 0;}
+    table {width: 100%; border-collapse: collapse; margin-top: 15px;}
+    th, td {padding: 10px; text-align: left; border-bottom: 1px solid #eee;}
+    .status {padding: 4px 10px; border-radius: 12px; font-size: 13px;}
+    .aberto {background: #d5f4e6; color: #27ae60;}
+    .fechado {background: #fde8e8; color: #e74c3c;}
+  </style>
+</head>
+<body>
+  <h1>💰 Controle de Caixa</h1>
 
+  <div class="card" id="abertura">
+    <h3>Abrir Caixa</h3>
+    <input type="text" id="operador" placeholder="Nome do operador">
+    <input type="number" id="saldoInicial" placeholder="Saldo inicial" step="0.01">
+    <button onclick="abrirCaixa()">Abrir Caixa</button>
+  </div>
+
+  <div class="card" id="caixaAberto" style="display:none">
+    <h3>Caixa Aberto</h3>
+    <p>Operador: <span id="nomeOperador"></span></p>
+    <p>Saldo Inicial: R$ <span id="saldoIni"></span></p>
+    <p class="valor">Saldo Atual: R$ <span id="saldoAtual"></span></p>
+    
+    <h4>Registrar Movimento</h4>
+    <select id="tipoMov">
+      <option value="entrada">Entrada (Venda)</option>
+      <option value="saida">Saída</option>
+    </select>
+    <input type="number" id="valorMov" placeholder="Valor" step="0.01">
+    <input type="text" id="descMov" placeholder="Descrição">
+    <button class="azul" onclick="registrarMov()">Registrar</button>
+    
+    <br><br>
+    <button class="vermelho" onclick="fecharCaixa()">Fechar Caixa</button>
+  </div>
+
+  <script>
+    async function verificarCaixa() {
+      const res = await fetch('/api/resumo');
+      const dados = await res.json();
+      if (dados.caixaAberto) {
+        document.getElementById('abertura').style.display = 'none';
+        document.getElementById('caixaAberto').style.display = 'block';
+        document.getElementById('nomeOperador').innerText = dados.caixaAberto.operador;
+        document.getElementById('saldoIni').innerText = dados.caixaAberto.saldo_inicial.toFixed(2);
+        document.getElementById('saldoAtual').innerText = (dados.caixaAberto.saldo_inicial + dados.vendasHoje).toFixed(2);
+      }
+    }
+
+    async function abrirCaixa() {
+      const operador = document.getElementById('operador').value;
+      const saldo = parseFloat(document.getElementById('saldoInicial').value || 0);
+      await fetch('/api/caixa/abrir', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({operador, saldoInicial: saldo})
+      });
+      verificarCaixa();
+    }
+
+    async function registrarMov() {
+      await fetch('/api/caixa/movimento', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          tipo: document.getElementById('tipoMov').value,
+          valor: parseFloat(document.getElementById('valorMov').value),
+          descricao: document.getElementById('descMov').value
+        })
+      });
+      document.getElementById('valorMov').value = '';
+      document.getElementById('descMov').value = '';
+      verificarCaixa();
+    }
+
+    async function fecharCaixa() {
+      if (!confirm('Confirma fechamento do caixa?')) return;
+      await fetch('/api/caixa/fechar', {method: 'POST'});
+      alert('Caixa fechado! ✅');
+      location.reload();
+    }
+
+    verificarCaixa();
+  </script>
+</body>
+</html>
