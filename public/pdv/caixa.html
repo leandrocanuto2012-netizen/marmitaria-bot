@@ -8,27 +8,30 @@
     * {margin:0; padding:0; font-family: system-ui; box-sizing: border-box;}
     body {background: #f5f5f5; padding: 20px; max-width: 650px; margin: 0 auto;}
     h1 {color: #2d3436; margin-bottom: 20px;}
+    .aba {display: flex; gap: 8px; margin-bottom: 20px;}
+    .aba-btn {flex:1; padding: 10px; border: none; background: #ddd; border-radius: 8px; cursor: pointer; font-weight: bold;}
+    .aba-btn.ativo {background: #27ae60; color: white;}
     .caixa-aberto {background: #d4edda; border-left: 5px solid #27ae60; padding: 15px; border-radius: 10px; margin-bottom: 20px;}
     .caixa-fechado {background: #f8d7da; border-left: 5px solid #dc3545; padding: 15px; border-radius: 10px; margin-bottom: 20px;}
-    form {background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.08);}
-    input, button, select {padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; width: 100%;}
+    .card {background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.08);}
+    input, button, select, textarea {padding: 12px; margin: 6px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; width: 100%;}
     button {background: #27ae60; color: white; border: none; font-weight: bold; cursor: pointer;}
     button.vermelho {background: #e74c3c;}
     button.azul {background: #3498db;}
     button.cinza {background: #95a5a6;}
-    .voltar {display: inline-block; margin-bottom: 15px; color: #d35400; text-decoration: none;}
     .resumo {display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee;}
     .resumo.total {font-size: 1.3em; font-weight: bold; color: #27ae60; border-bottom: 2px solid #ddd; padding: 15px 0;}
-    .lista-item {padding: 10px 0; border-bottom: 1px dashed #ddd;}
-    .lista-item .nome {font-weight: bold;}
-    .lista-item .qtd {color: #666; font-size: 14px;}
-    .lista-item .valor {text-align: right; color: #27ae60; font-weight: bold;}
+    .lista-item {padding: 10px 0; border-bottom: 1px dashed #ddd; display: flex; justify-content: space-between; align-items: center;}
+    .valor {font-weight: bold; color: #27ae60;}
     .cupom {background: #fff; border: 2px dashed #999; padding: 20px; margin-top: 20px; font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.6;}
     .cupom .cabecalho {text-align: center; margin-bottom: 15px;}
     .cupom .linha {border-bottom: 1px dashed #ccc; padding: 4px 0;}
     .cupom .total {font-weight: bold; font-size: 16px; text-align: right; margin-top: 10px;}
     .cupom .rodape {text-align: center; margin-top: 15px; font-size: 12px; color: #666;}
-    .imprimir {margin-top: 15px;}
+    .voltar {display: inline-block; margin-bottom: 15px; color: #d35400; text-decoration: none;}
+    .oculto {display: none !important;}
+    .item-venda-manual {display: flex; gap: 8px; align-items: center; margin: 8px 0; padding: 8px; background: #f9f9f9; border-radius: 6px;}
+    .item-venda-manual input {margin: 0; padding: 8px;}
     @media print {
       body * {visibility: hidden;}
       .cupom, .cupom * {visibility: visible;}
@@ -52,19 +55,49 @@
   </form>
 
   <!-- PAINEL ABERTO -->
-  <div id="painelAberto" style="display:none;">
-    <h3>📋 Vendas do Dia</h3>
-      <div style="margin:15px 0; display:flex; gap:10px; flex-wrap:wrap;">
-      <a href="estoque.html" style="padding:10px 15px; background:#f39c12; color:white; border-radius:8px; text-decoration:none; font-weight:bold;">📦 Estoque</a>
-      <a href="vendas.html" style="padding:10px 15px; background:#3498db; color:white; border-radius:8px; text-decoration:none; font-weight:bold;">🛒 Pedidos</a>
-      <a href="calculadora-insumos.html" style="padding:10px 15px; background:#9c27b0; color:white; border-radius:8px; text-decoration:none; font-weight:bold;">🧮 Custos</a>
-      <a href="analise-vendas.html" style="padding:10px 15px; background:#27ae60; color:white; border-radius:8px; text-decoration:none; font-weight:bold;">📊 Análise</a>
-      <a href="fornecedores.html" style="padding:10px 15px; background:#607d8b; color:white; border-radius:8px; text-decoration:none; font-weight:bold;">🤝 Fornecedores</a>
+  <div id="painelAberto" class="oculto">
+    <!-- ABAS -->
+    <div class="aba">
+      <button class="aba-btn ativo" onclick="mudarAba('vendas')">📋 Vendas</button>
+      <button class="aba-btn" onclick="mudarAba('manual')">✍️ Venda Manual</button>
     </div>
-    <button class="azul" style="width:auto; margin:10px 0;" onclick="carregarVendas()">🔄 Atualizar</button>
-    
-    <div id="listaVendas"></div>
 
+    <!-- ABA VENDAS (automáticas) -->
+    <div id="abaVendas">
+      <button class="azul" style="width:auto; margin:10px 0;" onclick="carregarVendas()">🔄 Atualizar</button>
+      <div id="listaVendas"></div>
+    </div>
+
+    <!-- ABA VENDA MANUAL -->
+    <div id="abaManual" class="oculto">
+      <div class="card">
+        <h3>✍️ Lançar Venda Manual</h3>
+        <input type="text" id="cliNome" placeholder="Nome do Cliente (opcional)">
+        <input type="text" id="cliTelefone" placeholder="Telefone (opcional)">
+        <select id="tipoVenda">
+          <option value="balcao">Retirada no Balcão</option>
+          <option value="entrega">Entrega</option>
+        </select>
+        
+        <div id="itensManual">
+          <div class="item-venda-manual">
+            <input type="text" placeholder="Produto" class="item-nome" style="flex:2;">
+            <input type="number" placeholder="Qtd" class="item-qtd" style="width:70px;">
+            <input type="number" placeholder="R$" step="0.01" class="item-valor" style="width:100px;">
+            <button class="vermelho" onclick="removerItem(this)" style="width:32px; padding:6px;">−</button>
+          </div>
+        </div>
+        <button class="azul" onclick="adicionarItem()">+ Adicionar Item</button>
+        
+        <textarea id="obs" placeholder="Observações (opcional)"></textarea>
+        <div style="font-size:1.5em; font-weight:bold; color:#27ae60; text-align:right; margin:10px 0;">
+          TOTAL: R$ <span id="totalManual">0,00</span>
+        </div>
+        <button onclick="registrarVendaManual()">✅ Registrar Venda</button>
+      </div>
+    </div>
+
+    <!-- RESUMO -->
     <div style="margin-top:30px;">
       <h3>📊 Resumo do Caixa</h3>
       <div class="resumo"><strong>Saldo Inicial:</strong> <span id="saldoIni">R$ 0,00</span></div>
@@ -78,7 +111,7 @@
     </form>
   </div>
 
-  <!-- CUPOM IMPRESSÃO -->
+  <!-- CUPOM -->
   <div id="areaCupom" style="display:none;">
     <div class="cupom" id="cupomFiscal">
       <div class="cabecalho">
@@ -92,9 +125,7 @@
         <strong>PEDIDO Nº:</strong> <span id="cupomPedido"></span>
       </div>
       <div id="cupomItens"></div>
-      <div class="total">
-        TOTAL: R$ <span id="cupomTotal"></span>
-      </div>
+      <div class="total">TOTAL: R$ <span id="cupomTotal"></span></div>
       <div class="rodape">
         --------------------------------<br>
         Obrigado pela preferência! Volte sempre!<br>
@@ -102,13 +133,109 @@
       </div>
     </div>
     <button class="imprimir" onclick="window.print()">🖨️ Imprimir Cupom</button>
-    <button class="cinza" style="margin-left:10px;" onclick="fecharCupom()">Fechar</button>
+    <button class="cinza" onclick="fecharCupom()">Fechar</button>
   </div>
 
   <script>
     let caixaAtual = null;
     let vendasHoje = [];
 
+    // === ABAS ===
+    function mudarAba(nome) {
+      document.querySelectorAll('.aba-btn').forEach(b => b.classList.remove('ativo'));
+      event.target.classList.add('ativo');
+      document.getElementById('abaVendas').classList.toggle('oculto', nome !== 'vendas');
+      document.getElementById('abaManual').classList.toggle('oculto', nome !== 'manual');
+      if (nome === 'manual') calcularTotalManual();
+    }
+
+    // === VENDA MANUAL ===
+    function adicionarItem() {
+      const container = document.getElementById('itensManual');
+      const div = document.createElement('div');
+      div.className = 'item-venda-manual';
+      div.innerHTML = `
+        <input type="text" placeholder="Produto" class="item-nome" style="flex:2;">
+        <input type="number" placeholder="Qtd" class="item-qtd" style="width:70px;">
+        <input type="number" placeholder="R$" step="0.01" class="item-valor" style="width:100px;">
+        <button class="vermelho" onclick="removerItem(this)" style="width:32px; padding:6px;">−</button>
+      `;
+      container.appendChild(div);
+      div.querySelectorAll('input').forEach(i => i.addEventListener('input', calcularTotalManual));
+    }
+
+    function removerItem(btn) {
+      const itens = document.querySelectorAll('.item-venda-manual');
+      if (itens.length > 1) btn.parentElement.remove();
+      calcularTotalManual();
+    }
+
+    function calcularTotalManual() {
+      let total = 0;
+      document.querySelectorAll('.item-venda-manual').forEach(linha => {
+        const qtd = parseFloat(linha.querySelector('.item-qtd').value) || 0;
+        const val = parseFloat(linha.querySelector('.item-valor').value) || 0;
+        total += qtd * val;
+      });
+      document.getElementById('totalManual').innerText = total.toFixed(2);
+    }
+
+    async function registrarVendaManual() {
+      const itens = [];
+      let valorTotal = 0;
+      
+      document.querySelectorAll('.item-venda-manual').forEach(linha => {
+        const nome = linha.querySelector('.item-nome').value.trim();
+        const qtd = parseFloat(linha.querySelector('.item-qtd').value) || 0;
+        const val = parseFloat(linha.querySelector('.item-valor').value) || 0;
+        if (nome && qtd > 0 && val > 0) {
+          itens.push({nome, quantidade: qtd, preco_unitario: val});
+          valorTotal += qtd * val;
+        }
+      });
+
+      if (itens.length === 0) return alert('Preencha pelo menos um item!');
+
+      const dados = {
+        nome_cliente: document.getElementById('cliNome').value.trim() || 'Venda Balcão',
+        telefone_cliente: document.getElementById('cliTelefone').value.trim(),
+        tipo: document.getElementById('tipoVenda').value,
+        observacao: document.getElementById('obs').value.trim() || 'Lançamento Manual',
+        valor_total: valorTotal.toFixed(2),
+        itens: itens,
+        status: 'entregue'
+      };
+
+      if (!confirm(`Confirmar venda de R$ ${valorTotal.toFixed(2)}?`)) return;
+
+      const res = await fetch('/api/pedidos/manual', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(dados)
+      });
+
+      const pedido = await res.json();
+      alert('✅ Venda registrada!');
+      
+      // Limpa formulário
+      document.getElementById('cliNome').value = '';
+      document.getElementById('cliTelefone').value = '';
+      document.getElementById('obs').value = '';
+      document.getElementById('itensManual').innerHTML = `
+        <div class="item-venda-manual">
+          <input type="text" placeholder="Produto" class="item-nome" style="flex:2;">
+          <input type="number" placeholder="Qtd" class="item-qtd" style="width:70px;">
+          <input type="number" placeholder="R$" step="0.01" class="item-valor" style="width:100px;">
+          <button class="vermelho" onclick="removerItem(this)" style="width:32px; padding:6px;">−</button>
+        </div>
+      `;
+      calcularTotalManual();
+      
+      carregarVendas();
+      gerarCupom(pedido.id, pedido);
+    }
+
+    // === CAIXA ===
     async function verificarCaixa() {
       try {
         const res = await fetch('/api/resumo');
@@ -117,24 +244,18 @@
         
         if (caixaAtual) {
           document.getElementById('statusCaixa').innerHTML = `
-            <div class="caixa-aberto">
-              ✅ CAIXA ABERTO<br>
-              Operador: <strong>${caixaAtual.operador}</strong><br>
-              Abertura: ${new Date(caixaAtual.abertura || caixaAtual.created_at).toLocaleString('pt-BR')}
-            </div>
+            <div class="caixa-aberto">✅ CAIXA ABERTO — Operador: ${caixaAtual.operador}</div>
           `;
           document.getElementById('formAbrir').style.display = 'none';
-          document.getElementById('painelAberto').style.display = 'block';
+          document.getElementById('painelAberto').classList.remove('oculto');
           carregarVendas();
         } else {
           document.getElementById('statusCaixa').innerHTML = `<div class="caixa-fechado">🔴 CAIXA FECHADO</div>`;
           document.getElementById('formAbrir').style.display = 'block';
-          document.getElementById('painelAberto').style.display = 'none';
-          document.getElementById('areaCupom').style.display = 'none';
+          document.getElementById('painelAberto').classList.add('oculto');
         }
       } catch (e) {
-        console.error(e);
-        document.getElementById('statusCaixa').innerHTML = `<p style="color:red;">Erro de conexão: ${e.message}</p>`;
+        document.getElementById('statusCaixa').innerHTML = `<p style="color:red;">Erro: ${e.message}</p>`;
       }
     }
 
@@ -143,23 +264,20 @@
       const pedidos = await res.json();
       const hoje = new Date().toISOString().split('T')[0];
       
-      vendasHoje = pedidos.filter(p => {
-        const dataPedido = p.created_at.split('T')[0];
-        return dataPedido === hoje && p.status === 'entregue';
-      });
+      vendasHoje = pedidos.filter(p => p.created_at.startsWith(hoje) && p.status === 'entregue');
 
       const lista = document.getElementById('listaVendas');
       if (vendasHoje.length === 0) {
-        lista.innerHTML = '<p style="color:#888; padding:15px;">Nenhuma venda finalizada hoje</p>';
+        lista.innerHTML = '<p style="color:#888; padding:15px;">Nenhuma venda hoje</p>';
       } else {
         lista.innerHTML = vendasHoje.map(p => `
-          <div class="lista-item" style="display:flex; justify-content:space-between; align-items:center;">
+          <div class="lista-item">
             <div>
-              <div class="nome">#${p.id} — ${p.nome_cliente || 'Cliente'}</div>
-              <div class="qtd">🕒 ${new Date(p.created_at).toLocaleTimeString('pt-BR')} | ${p.tipo === 'balcao' ? 'Retirada' : p.tipo === 'entrega' ? 'Entrega' : '-'}</div>
+              <strong>#${p.id} — ${p.nome_cliente || 'Cliente'}</strong><br>
+              <small>🕒 ${new Date(p.created_at).toLocaleTimeString('pt-BR')} | ${p.tipo === 'balcao' ? 'Balcão' : 'Entrega'}</small>
             </div>
-            <div class="valor">
-              R$ ${parseFloat(p.valor_total).toFixed(2)}<br>
+            <div style="text-align:right;">
+              <div class="valor">R$ ${parseFloat(p.valor_total).toFixed(2)}</div>
               <button style="padding:4px 8px; font-size:12px; margin-top:4px;" onclick="gerarCupom(${p.id})">🧾 Cupom</button>
             </div>
           </div>
@@ -175,30 +293,27 @@
       document.getElementById('saldoAtual').innerText = `R$ ${(saldoInicial + total).toFixed(2)}`;
     }
 
-    async function gerarCupom(pedidoId) {
-      const pedido = vendasHoje.find(p => p.id === pedidoId);
-      if (!pedido) return alert('Pedido não encontrado');
+    async function gerarCupom(id, pedidoDados = null) {
+      const pedido = pedidoDados || vendasHoje.find(p => p.id === id);
+      if (!pedido) return;
 
       document.getElementById('cupomData').innerText = new Date(pedido.created_at).toLocaleString('pt-BR');
       document.getElementById('cupomPedido').innerText = pedido.id;
       document.getElementById('cupomTotal').innerText = parseFloat(pedido.valor_total).toFixed(2);
       
-      // Itens do pedido
       let itensHtml = '';
       try {
-        const resItens = await fetch(`/api/pedidos/${pedidoId}/itens`);
+        const resItens = await fetch(`/api/pedidos/${id}/itens`);
         const itens = await resItens.json();
         if (itens.length > 0) {
           itensHtml = itens.map(i => `
-            <div class="linha">
-              ${i.quantidade}x ${i.nome_produto} — R$ ${(parseFloat(i.preco_unitario) * i.quantidade).toFixed(2)}
-            </div>
+            <div class="linha">${i.quantidade}x ${i.nome_produto} — R$ ${(parseFloat(i.preco_unitario) * i.quantidade).toFixed(2)}</div>
           `).join('');
         } else {
-          itensHtml = `<div class="linha">Pedido #${pedido.id} — R$ ${parseFloat(pedido.valor_total).toFixed(2)}</div>`;
+          itensHtml = `<div class="linha">Venda — R$ ${parseFloat(pedido.valor_total).toFixed(2)}</div>`;
         }
       } catch {
-        itensHtml = `<div class="linha">Pedido #${pedido.id} — R$ ${parseFloat(pedido.valor_total).toFixed(2)}</div>`;
+        itensHtml = `<div class="linha">Venda — R$ ${parseFloat(pedido.valor_total).toFixed(2)}</div>`;
       }
       
       document.getElementById('cupomItens').innerHTML = itensHtml;
@@ -210,7 +325,7 @@
       document.getElementById('areaCupom').style.display = 'none';
     }
 
-    // Abrir Caixa
+    // ABRIR CAIXA
     document.getElementById('formAbrir').addEventListener('submit', async e => {
       e.preventDefault();
       await fetch('/api/caixa/abrir', {
@@ -223,18 +338,23 @@
       });
       e.target.reset();
       verificarCaixa();
-      alert('✅ Caixa aberto! Pronto para registrar vendas!');
+      alert('✅ Caixa aberto!');
     });
 
-    // Fechar Caixa
+    // FECHAR CAIXA
     document.getElementById('formFechar').addEventListener('submit', async e => {
       e.preventDefault();
       const total = vendasHoje.reduce((s, p) => s + parseFloat(p.valor_total || 0), 0);
-      if (!confirm(`Confirma FECHAR o caixa?\n\nSaldo Inicial: R$ ${(caixaAtual?.saldo_inicial || 0).toFixed(2)}\nTotal Vendas: R$ ${total.toFixed(2)}\nSaldo Final: R$ ${((caixaAtual?.saldo_inicial || 0) + total).toFixed(2)}\n\nNenhuma venda será registrada até reabrir.`)) return;
-      
-      await fetch('/api/caixa/fechar', { method: 'POST' });
+      if (!confirm(`Fechar caixa?\nInicial: R$ ${(caixaAtual?.saldo_inicial||0).toFixed(2)}\nVendas: R$ ${total.toFixed(2)}\nFinal: R$ ${((caixaAtual?.saldo_inicial||0)+total).toFixed(2)}`)) return;
+      await fetch('/api/caixa/fechar', {method: 'POST'});
       verificarCaixa();
-      alert('✅ Caixa fechado! Resumo salvo!');
+    });
+
+    // Calcula total manual ao digitar
+    document.addEventListener('input', e => {
+      if (e.target.classList.contains('item-qtd') || e.target.classList.contains('item-valor')) {
+        calcularTotalManual();
+      }
     });
 
     verificarCaixa();
