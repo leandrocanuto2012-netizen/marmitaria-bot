@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Caixa / PDV — Marmitária</title>
+  <script>
+    if (localStorage.getItem('logado') !== 'sim') {
+      window.location.href = '../login.html';
+    }
+  </script>
   <style>
     * {margin:0; padding:0; font-family: system-ui; box-sizing: border-box;}
     body {background: #fef9f3; padding: 20px; max-width: 900px; margin: 0 auto;}
@@ -22,7 +27,6 @@
     button.vermelho {background: #e74c3c;}
     button.azul {background: #3498db;}
     button.largo {padding: 14px; font-size: 1.1em; margin-top: 15px;}
-    .grid {display: grid; grid-template-columns: 1fr 1fr; gap: 10px;}
     .mov-item {padding: 10px 0; border-bottom: 1px dashed #eee;}
     .mov-entrada {color: #27ae60;}
     .mov-saida {color: #e74c3c;}
@@ -38,6 +42,8 @@
 <body>
   <a href="../index.html" class="voltar">← Início</a>
   <h1>💰 Caixa / PDV</h1>
+
+  <div id="avisoGeral" class="aviso"></div>
 
   <!-- SEM CAIXA ABERTO -->
   <div id="semCaixa" class="card aviso">
@@ -96,7 +102,7 @@
     </form>
 
     <h3 style="margin: 25px 0 10px;">📋 Últimos Movimentos</h3>
-    <div id="listaMov"></div>
+    <div id="listaMov"><p style="color:#888; padding:10px;">Carregando...</p></div>
 
     <h3 style="margin: 25px 0 10px;">🔴 Fechar Caixa</h3>
     <form id="formFechar">
@@ -112,62 +118,11 @@
   <div id="caixaFechado" class="card fechado oculto">
     <h2>🔒 Caixa Fechado</h2>
     <div id="dadosFechamento"></div>
-    <button class="azul" style="margin-top: 15px;" onclick="carregar()">🔄 Atualizar / Outro dia</button>
+    <button class="azul" style="margin-top: 15px;" onclick="carregar()">🔄 Novo Caixa</button>
   </div>
-
-  <div class="aviso" id="avisoGeral"></div>
 
   <script>
     let caixaAtual = null;
-
-    async function carregar() {
-      const res = await fetch('/api/caixa/atual');
-      const dados = await res.json();
-
-      document.getElementById('semCaixa').classList.add('oculto');
-      document.getElementById('caixaAberto').classList.add('oculto');
-      document.getElementById('caixaFechado').classList.add('oculto');
-
-      if (!dados.aberto) {
-        document.getElementById('semCaixa').classList.remove('oculto');
-        return;
-      }
-
-      caixaAtual = dados.caixa;
-      document.getElementById('caixaAberto').classList.remove('oculto');
-      document.getElementById('caixaId').value = caixaAtual.id;
-      document.getElementById('caixaIdFechar').value = caixaAtual.id;
-
-      // Preencher dados
-      document.getElementById('nomeOperador').textContent = caixaAtual.operador_nome;
-      document.getElementById('dataAbertura').textContent = new Date(caixaAtual.data_abertura).toLocaleString('pt-BR');
-      document.getElementById('valInicial').textContent = `R$ ${parseFloat(caixaAtual.valor_inicial).toFixed(2)}`;
-
-      // Calcular
-      let entradas = 0, saidas = 0;
-      (caixaAtual.movimentos || []).forEach(m => {
-        if (m.tipo === 'entrada') entradas += parseFloat(m.valor);
-        if (m.tipo === 'saida') saidas += parseFloat(m.valor);
-      });
-
-      document.getElementById('valEntradas').textContent = `+ R$ ${entradas.toFixed(2)}`;
-      document.getElementById('valSaidas').textContent = `- R$ ${saidas.toFixed(2)}`;
-      document.getElementById('valEsperado').textContent = `R$ ${parseFloat(caixaAtual.valor_esperado).toFixed(2)}`;
-
-      // Lista de movimentos
-      const lista = document.getElementById('listaMov');
-      if (!caixaAtual.movimentos.length) {
-        lista.innerHTML = '<p style="color:#888; padding:10px;">Nenhum lançamento ainda</p>';
-      } else {
-        lista.innerHTML = caixaAtual.movimentos.map(m => `
-          <div class="mov-item">
-            <span class="mov-${m.tipo}">${m.tipo === 'entrada' ? '+' : '-'} R$ ${parseFloat(m.valor).toFixed(2)}</span>
-            — ${m.descricao || 'Sem descrição'}
-            <span style="color:#888; font-size:0.85em; float:right;">${new Date(m.created_at).toLocaleTimeString('pt-BR')}</span>
-          </div>
-        `).join('');
-      }
-    }
 
     function mostrarAviso(texto, tipo) {
       const av = document.getElementById('avisoGeral');
@@ -177,7 +132,56 @@
       setTimeout(() => av.style.display = 'none', 5000);
     }
 
-    // Abrir caixa
+    async function carregar() {
+      try {
+        const res = await fetch('/api/caixa/atual');
+        const dados = await res.json();
+
+        document.getElementById('semCaixa').classList.add('oculto');
+        document.getElementById('caixaAberto').classList.add('oculto');
+        document.getElementById('caixaFechado').classList.add('oculto');
+
+        if (!dados.aberto) {
+          document.getElementById('semCaixa').classList.remove('oculto');
+          return;
+        }
+
+        caixaAtual = dados.caixa;
+        document.getElementById('caixaAberto').classList.remove('oculto');
+        document.getElementById('caixaId').value = caixaAtual.id;
+        document.getElementById('caixaIdFechar').value = caixaAtual.id;
+
+        document.getElementById('nomeOperador').textContent = caixaAtual.operador_nome;
+        document.getElementById('dataAbertura').textContent = new Date(caixaAtual.data_abertura).toLocaleString('pt-BR');
+        document.getElementById('valInicial').textContent = `R$ ${parseFloat(caixaAtual.valor_inicial).toFixed(2)}`;
+
+        let entradas = 0, saidas = 0;
+        (caixaAtual.movimentos || []).forEach(m => {
+          if (m.tipo === 'entrada') entradas += parseFloat(m.valor);
+          if (m.tipo === 'saida') saidas += parseFloat(m.valor);
+        });
+
+        document.getElementById('valEntradas').textContent = `+ R$ ${entradas.toFixed(2)}`;
+        document.getElementById('valSaidas').textContent = `- R$ ${saidas.toFixed(2)}`;
+        document.getElementById('valEsperado').textContent = `R$ ${parseFloat(caixaAtual.valor_esperado).toFixed(2)}`;
+
+        const lista = document.getElementById('listaMov');
+        if (!caixaAtual.movimentos.length) {
+          lista.innerHTML = '<p style="color:#888; padding:10px;">Nenhum lançamento ainda</p>';
+        } else {
+          lista.innerHTML = caixaAtual.movimentos.map(m => `
+            <div class="mov-item">
+              <span class="mov-${m.tipo}">${m.tipo === 'entrada' ? '+' : '-'} R$ ${parseFloat(m.valor).toFixed(2)}</span>
+              — ${m.descricao || 'Sem descrição'}
+              <span style="color:#888; font-size:0.85em; float:right;">${new Date(m.created_at).toLocaleTimeString('pt-BR')}</span>
+            </div>
+          `).join('');
+        }
+      } catch (e) {
+        mostrarAviso('Erro ao carregar: ' + e.message, 'erro');
+      }
+    }
+
     document.getElementById('formAbrir').addEventListener('submit', async e => {
       e.preventDefault();
       const res = await fetch('/api/caixa/abrir', {
@@ -197,7 +201,6 @@
       }
     });
 
-    // Lançar movimento
     document.getElementById('formMovimento').addEventListener('submit', async e => {
       e.preventDefault();
       const res = await fetch('/api/caixa/movimento', {
@@ -223,8 +226,8 @@
       }
     });
 
-    // Verificar divergência ao digitar valor conferido
     document.getElementById('valorConferido').addEventListener('input', () => {
+      if (!caixaAtual) return;
       const esperado = parseFloat(caixaAtual.valor_esperado);
       const conferido = parseFloat(document.getElementById('valorConferido').value) || 0;
       const dif = conferido - esperado;
@@ -238,4 +241,40 @@
       av.classList.remove('oculto', 'sim', 'nao');
       if (dif === 0) {
         av.classList.add('nao');
-        av.innerHTML = '✅
+        av.innerHTML = '✅ Sem divergência — valores conferem!';
+      } else if (dif > 0) {
+        av.classList.add('sim');
+        av.innerHTML = `⚠️ Sobrou R$ ${dif.toFixed(2)}`;
+      } else {
+        av.classList.add('sim');
+        av.innerHTML = `⚠️ Faltou R$ ${Math.abs(dif).toFixed(2)}`;
+      }
+    });
+
+    document.getElementById('formFechar').addEventListener('submit', async e => {
+      e.preventDefault();
+      if (!confirm('CONFIRMAR FECHAMENTO?\nDepois não será possível alterar!')) return;
+
+      const res = await fetch('/api/caixa/fechar', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          caixa_id: caixaAtual.id,
+          valor_conferido: document.getElementById('valorConferido').value,
+          observacao: document.getElementById('observacao').value.trim()
+        })
+      });
+
+      const d = await res.json();
+      if (d.ok) {
+        mostrarAviso(d.mensagem, 'sucesso');
+        carregar();
+      } else {
+        mostrarAviso(d.erro || 'Erro ao fechar', 'erro');
+      }
+    });
+
+    carregar();
+  </script>
+</body>
+</html>
