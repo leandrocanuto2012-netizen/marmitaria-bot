@@ -3,63 +3,97 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cardápio Digital — Marmitária</title>
-  <script>
-    if (localStorage.getItem('logado') !== 'sim') {
-      window.location.href = 'login.html';
-    }
-  </script>
+  <title>Cardápio — Marmitária</title>
   <style>
-    * {margin:0; padding:0; font-family: system-ui; box-sizing: border-box;}
-    body {background: #fef9f3; padding: 20px; max-width: 1000px; margin: 0 auto;}
-    .voltar {display: inline-block; margin-bottom: 15px; color: #d35400; text-decoration: none;}
-    h1 {color: #d35400; margin-bottom: 30px; text-align: center; font-size: 2em;}
+    * {margin: 0; padding: 0; font-family: system-ui, sans-serif; box-sizing: border-box;}
+    body {background: #fff9f0; padding: 20px; max-width: 900px; margin: 0 auto;}
+    .voltar {display: inline-block; margin-bottom: 20px; color: #e67e22; text-decoration: none; font-weight: 600;}
+    header {text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #f0e6d6;}
+    h1 {color: #d35400; font-size: 2em; display: flex; align-items: center; justify-content: center; gap: 10px;}
+    .subtitulo {color: #7f8c8d; margin-top: 8px;}
     .categoria {margin-bottom: 35px;}
-    .categoria-nome {font-size: 1.4em; font-weight: bold; color: #d35400; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #f0e6d8;}
-    .grid {display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px;}
-    .prato {background: white; border-radius: 14px; padding: 20px; box-shadow: 0 3px 10px rgba(0,0,0,0.06); transition: transform 0.2s;}
-    .prato:hover {transform: translateY(-3px);}
-    .prato-nome {font-weight: bold; font-size: 1.1em; margin-bottom: 8px; color: #2d3436;}
-    .prato-desc {color: #636e72; font-size: 0.9em; margin-bottom: 12px; line-height: 1.5;}
-    .prato-valor {font-size: 1.3em; font-weight: bold; color: #27ae60;}
-    .erro {color: #e74c3c; text-align: center; padding: 30px;}
-    .vazio {color: #95a5a6; text-align: center; padding: 30px;}
+    .categoria-titulo {color: #c0392b; font-size: 1.3em; padding: 10px 15px; background: #fff; border-left: 4px solid #e67e22; border-radius: 8px; margin-bottom: 15px;}
+    .item {background: #fff; padding: 18px; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); display: flex; justify-content: space-between; align-items: flex-start;}
+    .item-nome {font-weight: bold; font-size: 1.1em; color: #2d3436; margin-bottom: 5px;}
+    .item-desc {color: #636e72; font-size: 0.9em; margin-bottom: 8px;}
+    .item-preco {font-weight: bold; color: #27ae60; font-size: 1.2em; white-space: nowrap;}
+    .sem-estoque {opacity: 0.5;}
+    .sem-estoque .item-preco {color: #bdc3c7;}
+    .aviso {text-align: center; padding: 40px 20px; color: #e67e22;}
+    footer {text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #f0e6d6; color: #7f8c8d; font-size: 0.9em;}
   </style>
 </head>
 <body>
   <a href="index.html" class="voltar">← Início</a>
-  <h1>🍽️ Cardápio</h1>
-  <div id="conteudo"><p style="text-align:center; color:#d35400; padding:40px;">🔄 Carregando...</p></div>
+
+  <header>
+    <h1>🍽️ Cardápio</h1>
+    <p class="subtitulo">Sabor caseiro feito com carinho ❤️</p>
+  </header>
+
+  <div id="conteudo">
+    <div style="text-align:center; padding:40px;">Carregando...</div>
+  </div>
+
+  <footer>
+    <p>📍 Rua Exemplo, 123 — Curitiba/PR</p>
+    <p>📞 (41) 99999-9999</p>
+    <p>🕒 Segunda a Sábado: 11h às 14h | 18h às 21h</p>
+  </footer>
+
   <script>
     async function carregarCardapio() {
       try {
-        const res = await fetch('/api/cardapio');
-        if (!res.ok) throw new Error(`Erro ${res.status}`);
-        const pratos = await res.json();
-        if (!pratos.length) {
-          document.getElementById('conteudo').innerHTML = '<p class="vazio">Nenhum prato cadastrado</p>';
+        const res = await fetch('/api/produtos');
+        
+        if (!res.ok) throw new Error('Servidor não respondeu');
+        
+        const produtos = await res.json();
+        const conteudo = document.getElementById('conteudo');
+
+        if (!produtos || produtos.length === 0) {
+          conteudo.innerHTML = `
+            <div class="aviso">
+              <h3>📋 Cardápio em atualização</h3>
+              <p>Volte em instantes!</p>
+            </div>
+          `;
           return;
         }
-        const agrupado = {};
-        pratos.forEach(p => {
-          const cat = p.categoria || 'Geral';
-          if (!agrupado[cat]) agrupado[cat] = [];
-          agrupado[cat].push(p);
-        });
-        let html = '';
-        for (const [categoria, itens] of Object.entries(agrupado)) {
-          html += `<div class="categoria"><div class="categoria-nome">${categoria}</div><div class="grid">`;
-          itens.forEach(p => {
-            html += `<div class="prato"><div class="prato-nome">${p.nome}</div><div class="prato-desc">${p.descricao || ''}</div><div class="prato-valor">R$ ${parseFloat(p.valor).toFixed(2)}</div></div>`;
-          });
-          html += '</div></div>';
-        }
-        document.getElementById('conteudo').innerHTML = html;
-      } catch (e) {
-        console.error('Erro:', e);
-        document.getElementById('conteudo').innerHTML = `<p class="erro">❌ Não carregou<br>${e.message}</p>`;
+
+        // Agrupa por categoria (se tiver) ou mostra tudo
+        const html = produtos.map(p => {
+          const semEstoque = p.stock <= 0;
+          return `
+            <div class="item ${semEstoque ? 'sem-estoque' : ''}">
+              <div>
+                <div class="item-nome">${p.name}</div>
+                ${p.description ? `<div class="item-desc">${p.description}</div>` : ''}
+                ${semEstoque ? '<small style="color:#e74c3c;">❌ Indisponível</small>' : `<small style="color:#27ae60;">✅ Disponível (${p.stock} unidades)</small>`}
+              </div>
+              <div class="item-preco">R$ ${parseFloat(p.price).toFixed(2)}</div>
+            </div>
+          `;
+        }).join('');
+
+        conteudo.innerHTML = `
+          <div class="categoria">
+            <h2 class="categoria-titulo">🍛 Pratos Principais</h2>
+            ${html}
+          </div>
+        `;
+
+      } catch (erro) {
+        document.getElementById('conteudo').innerHTML = `
+          <div style="text-align:center; padding:40px; color:#e74c3c;">
+            <h3>⚠️ Não foi possível carregar o cardápio</h3>
+            <p>${erro.message}</p>
+            <button onclick="location.reload()" style="margin-top:15px; padding:10px 20px; background:#e67e22; color:white; border:none; border-radius:8px; font-size:16px;">🔄 Tentar Novamente</button>
+          </div>
+        `;
       }
     }
+
     carregarCardapio();
   </script>
 </body>
