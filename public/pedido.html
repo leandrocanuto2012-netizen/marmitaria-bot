@@ -1,1 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finalizar Pedido</title>
+  <style>
+    * {margin:0; padding:0; font-family: system-ui; box-sizing: border-box;}
+    body {background: #fef6e4; padding: 20px; max-width: 500px; margin: 0 auto;}
+    h1 {color: #d35400; text-align: center; margin-bottom: 25px;}
+    .item {background: white; padding: 12px; border-radius: 8px; margin-bottom: 8px;}
+    form {background: white; padding: 20px; border-radius: 12px; margin-top: 20px;}
+    input, select {width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 16px;}
+    button {background: #27ae60; color: white; border: none; padding: 14px; border-radius: 8px; width: 100%; font-size: 17px; font-weight: bold; margin-top: 10px; cursor: pointer;}
+    .total {font-size: 22px; font-weight: bold; color: #27ae60; text-align: right; margin: 15px 0;}
+    .voltar {display: block; text-align: center; margin-bottom: 15px; color: #d35400; text-decoration: none;}
+  </style>
+</head>
+<body>
+  <a href="cardapio.html" class="voltar">← Voltar ao Cardápio</a>
+  <h1>🛒 Finalizar Pedido</h1>
+  <div id="itens"></div>
+  <div class="total" id="total">R$ 0,00</div>
 
+  <form id="form">
+    <input type="text" id="nome" placeholder="Seu nome" required>
+    <input type="tel" id="telefone" placeholder="Seu WhatsApp (com DDD)" required>
+    <select id="tipo">
+      <option value="balcao">Retirada no Balcão</option>
+      <option value="entrega">Entrega</option>
+    </select>
+    <input type="text" id="observacao" placeholder="Observação (opcional)">
+    <button type="submit">✅ Confirmar Pedido</button>
+  </form>
+
+  <script>
+    let carrinho = JSON.parse(localStorage.getItem('carrinho') || '[]');
+    const total = carrinho.reduce((s, i) => s + i.preco * (i.qtd || 1), 0);
+
+    document.getElementById('itens').innerHTML = carrinho.map(i => 
+      `<div class="item">${i.nome} — R$ ${i.preco.toFixed(2)}</div>`
+    ).join('');
+    document.getElementById('total').innerText = `Total: R$ ${total.toFixed(2)}`;
+
+    document.getElementById('form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const btn = e.submitter;
+      btn.innerText = 'Enviando...';
+      btn.disabled = true;
+
+      const res = await fetch('/api/pedidos', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          nome: document.getElementById('nome').value,
+          telefone: document.getElementById('telefone').value.replace(/\D/g, ''),
+          tipo: document.getElementById('tipo').value,
+          observacao: document.getElementById('observacao').value,
+          itens: carrinho.map(i => ({produto_id: i.id, quantidade: i.qtd || 1}))
+        })
+      });
+
+      const dados = await res.json();
+      if (dados.sucess) {
+        localStorage.removeItem('carrinho');
+        alert(`✅ Pedido #${dados.pedidoId} confirmado!\nValor: R$ ${dados.valorTotal.toFixed(2)}\nEm breve estará pronto! 🥘`);
+        window.location.href = 'cardapio.html';
+      } else {
+        alert('Erro: ' + (dados.erro || 'Tente novamente'));
+        btn.innerText = '✅ Confirmar Pedido';
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
