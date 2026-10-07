@@ -746,6 +746,131 @@ app.post('/api/pedidos/manual', async (req, res) => {
   }
 });
 
+// === CLIENTES ===
+app.get('/api/clientes', async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT * FROM clientes ORDER BY nome`);
+    res.json(result.rows);
+  } catch (e) {
+    console.error('Listar clientes:', e);
+    res.status(500).json({erro: e.message});
+  }
+});
+
+app.get('/api/clientes/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(`SELECT * FROM clientes WHERE id = $1`, [parseInt(id)]);
+    res.json(result.rows[0]);
+  } catch (e) {
+    res.status(500).json({erro: e.message});
+  }
+});
+
+app.post('/api/clientes', async (req, res) => {
+  try {
+    const { nome, telefone, email, endereco, bairro, cidade, limite_fiado, observacao } = req.body;
+    const result = await pool.query(`
+      INSERT INTO clientes (nome, telefone, email, endereco, bairro, cidade, limite_fiado, saldo_fiado, observacao)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 0, $8)
+      RETURNING *
+    `, [nome, telefone||null, email||null, endereco||null, bairro||null, cidade||null, limite_fiado||500, observacao||null]);
+    res.json(result.rows[0]);
+  } catch (e) {
+    console.error('Cadastrar cliente:', e);
+    res.status(500).json({erro: e.message});
+  }
+});
+
+app.put('/api/clientes/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    const { nome, telefone, email, endereco, bairro, cidade, limite_fiado, observacao } = req.body;
+    const result = await pool.query(`
+      UPDATE clientes SET 
+        nome = $1, telefone = $2, email = $3, endereco = $4, bairro = $5, cidade = $6, 
+        limite_fiado = $7, observacao = $8, updated_at = NOW()
+      WHERE id = $9 RETURNING *
+    `, [nome, telefone||null, email||null, endereco||null, bairro||null, cidade||null, limite_fiado, observacao||null, id]);
+    res.json(result.rows[0]);
+  } catch (e) {
+    res.status(500).json({erro: e.message});
+  }
+});
+
+app.delete('/api/clientes/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    await pool.query(`DELETE FROM clientes WHERE id = $1`, [id]);
+    res.json({ok: true});
+  } catch (e) {
+    res.status(500).json({erro: e.message});
+  }
+});
+
+// === FIADO ===
+app.get('/api/fiado/:cliente_id', async (req, res) => {
+  try {
+    const cliente_id = parseInt(req.params.cliente_id);
+    const result = await pool.query(`
+      SELECT * FROM fiado_movimentos 
+      WHERE cliente_id = $1 
+      ORDER BY data_movimento DESC
+    `, [cliente_id]);
+    res.json(result.rows);
+  } catch (e) {
+    res.status(500).json({erro: e.message});
+  }
+});
+
+app.post('/api/fiado', async (req, res) => {
+  try {
+    const { cliente_id, tipo, valor, descricao } = req.body;
+    const cid = parseInt(cliente_id);
+    
+    await pool.query(`
+      INSERT INTO fiado_movimentos (cliente_id, tipo, valor, descricao)
+      VALUES ($1, $2, $3, $4)
+    `, [cid, tipo, valor, descricao]);
+    
+    const saldoResult = await pool.query(`
+      SELECT COALESCE(SUM(CASE WHEN tipo = 'DEBITO' THEN valor ELSE -valor END), 0) as saldo
+      FROM fiado_movimentos WHERE cliente_id = $1
+    `, [cid]);
+    
+    const novoSaldo = saldoResult.rows[0].saldo;
+    await pool.query(`UPDATE clientes SET saldo_fiado = $1 WHERE id = $2`, [novoSaldo, cid]);
+    
+    res.json({ok: true, novo_saldo: novoSaldo});
+  } catch (e) {
+    console.error('Lançar fiado:', e);
+    res.status(500).json({erro: e.message});
+  }
+});
+
+app.delete('/api/fiado/:id', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id);
+    
+    const mov = await pool.query(`SELECT cliente_id FROM fiado_movimentos WHERE id = $1`, [id]);
+    if (!mov.rows.length) return res.status(404).json({erro: 'Não encontrado'});
+    const cliente_id = mov.rows[0].cliente_id;
+    
+    await pool.query(`DELETE FROM fiado_movimentos WHERE id = $1`, [id]);
+    
+    const saldoResult = await pool.query(`
+      SELECT COALESCE(SUM(CASE WHEN tipo = 'DEBITO' THEN valor ELSE -valor END), 0) as saldo
+      FROM fiado_movimentos WHERE cliente_id = $1
+    `, [cliente_id]);
+    
+    await pool.query(`UPDATE clientes SET saldo_fiado = $1 WHERE id = $2`, [saldoResult.rows[0].saldo, cliente_id]);
+    
+    res.json({ok: true});
+  } catch (e) {
+    res.status(500).json({erro: e.message});
+  }
+});
+
 // ===== INICIAR SERVIDOR =====
 app.listen(CONFIG.PORT, () => {
   console.log(`🚀 SERVIDOR ONLINE — Porta ${CONFIG.PORT}`);
