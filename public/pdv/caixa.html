@@ -35,12 +35,14 @@
     .divergencia {padding: 12px; border-radius: 8px; margin: 10px 0;}
     .divergencia.sim {background: #fff3cd; border-left: 4px solid #f57c00;}
     .divergencia.nao {background: #e8f5e9; border-left: 4px solid #27ae60;}
+    .erro-pagina {color: #e74c3c; padding: 20px; text-align: center;}
   </style>
 </head>
 <body>
   <a href="../index.html" class="voltar">← Início</a>
   <h1>💰 Caixa / PDV</h1>
   <div id="avisoGeral" class="aviso"></div>
+  <div id="erroPagina" class="erro-pagina oculto"></div>
 
   <div id="semCaixa" class="card aviso">
     <h2>🔒 Nenhum caixa aberto</h2>
@@ -92,6 +94,7 @@
 
   <script>
     let caixaAtual = null;
+
     function mostrarAviso(texto, tipo) {
       const av = document.getElementById('avisoGeral');
       av.className = `aviso ${tipo}`;
@@ -99,16 +102,32 @@
       av.style.display = 'block';
       setTimeout(() => av.style.display = 'none', 5000);
     }
+
+    function mostrarErro(texto) {
+      const el = document.getElementById('erroPagina');
+      el.textContent = '❌ ' + texto;
+      el.classList.remove('oculto');
+    }
+
     async function carregar() {
       try {
+        document.getElementById('erroPagina').classList.add('oculto');
         const res = await fetch('/api/caixa/atual');
+        
+        if (!res.ok) {
+          throw new Error(`Servidor retornou: ${res.status}`);
+        }
+
         const dados = await res.json();
+        
         document.getElementById('semCaixa').classList.add('oculto');
         document.getElementById('caixaAberto').classList.add('oculto');
+
         if (!dados.aberto) {
           document.getElementById('semCaixa').classList.remove('oculto');
           return;
         }
+
         caixaAtual = dados.caixa;
         document.getElementById('caixaAberto').classList.remove('oculto');
         document.getElementById('caixaId').value = caixaAtual.id;
@@ -116,85 +135,137 @@
         document.getElementById('nomeOperador').textContent = caixaAtual.operador_nome;
         document.getElementById('dataAbertura').textContent = new Date(caixaAtual.data_abertura).toLocaleString('pt-BR');
         document.getElementById('valInicial').textContent = `R$ ${parseFloat(caixaAtual.valor_inicial).toFixed(2)}`;
+
         let entradas = 0, saidas = 0;
         (caixaAtual.movimentos || []).forEach(m => {
           if (m.tipo === 'entrada') entradas += parseFloat(m.valor);
           if (m.tipo === 'saida') saidas += parseFloat(m.valor);
         });
+
         document.getElementById('valEntradas').textContent = `+ R$ ${entradas.toFixed(2)}`;
         document.getElementById('valSaidas').textContent = `- R$ ${saidas.toFixed(2)}`;
         document.getElementById('valEsperado').textContent = `R$ ${parseFloat(caixaAtual.valor_esperado).toFixed(2)}`;
+
         const lista = document.getElementById('listaMov');
         if (!caixaAtual.movimentos.length) {
-          lista.innerHTML = '<p style="color:#888; padding:10px;">Nenhum lançamento</p>';
+          lista.innerHTML = '<p style="color:#888; padding:10px;">Nenhum lançamento ainda</p>';
         } else {
-          lista.innerHTML = caixaAtual.movimentos.map(m => `<div class="mov-item"><span class="mov-${m.tipo}">${m.tipo === 'entrada' ? '+' : '-'} R$ ${parseFloat(m.valor).toFixed(2)}</span> — ${m.descricao || ''}<span style="color:#888; font-size:0.85em; float:right;">${new Date(m.created_at).toLocaleTimeString('pt-BR')}</span></div>`).join('');
+          lista.innerHTML = caixaAtual.movimentos.map(m => `
+            <div class="mov-item">
+              <span class="mov-${m.tipo}">${m.tipo === 'entrada' ? '+' : '-'} R$ ${parseFloat(m.valor).toFixed(2)}</span>
+              — ${m.descricao || 'Sem descrição'}
+              <span style="color:#888; font-size:0.85em; float:right;">${new Date(m.created_at).toLocaleTimeString('pt-BR')}</span>
+            </div>
+          `).join('');
+        }
+      } catch (e) {
+        console.error('Erro carregar:', e);
+        mostrarErro(e.message + ' — Verifique se o servidor está rodando');
+      }
+    }
+
+    document.getElementById('formAbrir').addEventListener('submit', async e => {
+      e.preventDefault();
+      try {
+        const res = await fetch('/api/caixa/abrir', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            operador_nome: document.getElementById('operador').value.trim(),
+            valor_inicial: document.getElementById('valorInicial').value
+          })
+        });
+        const d = await res.json();
+        if (d.ok) {
+          mostrarAviso('✅ Caixa aberto!', 'sucesso');
+          carregar();
+        } else {
+          mostrarAviso(d.erro || 'Erro ao abrir', 'erro');
         }
       } catch (e) {
         mostrarAviso('Erro: ' + e.message, 'erro');
       }
-    }
-    document.getElementById('formAbrir').addEventListener('submit', async e => {
-      e.preventDefault();
-      const res = await fetch('/api/caixa/abrir', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ operador_nome: document.getElementById('operador').value.trim(), valor_inicial: document.getElementById('valorInicial').value })
-      });
-      const d = await res.json();
-      if (d.ok) { mostrarAviso('✅ Caixa aberto!', 'sucesso'); carregar(); }
-      else mostrarAviso(d.erro, 'erro');
     });
+
     document.getElementById('formMovimento').addEventListener('submit', async e => {
       e.preventDefault();
-      const res = await fetch('/api/caixa/movimento', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          caixa_id: caixaAtual.id,
-          tipo: document.getElementById('tipo').value,
-          valor: document.getElementById('valorMov').value,
-          descricao: document.getElementById('descricao').value.trim(),
-          forma_pagamento: document.getElementById('pagamento').value,
-          usuario: localStorage.getItem('nomeUsuario') || 'Sistema'
-        })
-      });
-      const d = await res.json();
-      if (d.ok) {
-        document.getElementById('valorMov').value = '';
-        document.getElementById('descricao').value = '';
-        mostrarAviso('✅ Registrado!', 'sucesso');
-        carregar();
-      } else mostrarAviso(d.erro, 'erro');
+      try {
+        const res = await fetch('/api/caixa/movimento', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            caixa_id: caixaAtual.id,
+            tipo: document.getElementById('tipo').value,
+            valor: document.getElementById('valorMov').value,
+            descricao: document.getElementById('descricao').value.trim(),
+            forma_pagamento: 'dinheiro',
+            usuario: localStorage.getItem('nomeUsuario') || 'Sistema'
+          })
+        });
+        const d = await res.json();
+        if (d.ok) {
+          document.getElementById('valorMov').value = '';
+          document.getElementById('descricao').value = '';
+          mostrarAviso('✅ Registrado!', 'sucesso');
+          carregar();
+        } else {
+          mostrarAviso(d.erro, 'erro');
+        }
+      } catch (e) {
+        mostrarAviso('Erro: ' + e.message, 'erro');
+      }
     });
+
     document.getElementById('valorConferido').addEventListener('input', () => {
       if (!caixaAtual) return;
-      const esperado = parseFloat(caixaAtual.valor_esperado);
+      const esperado = parseFloat(caixaAtual.valor_esperado) || 0;
       const conferido = parseFloat(document.getElementById('valorConferido').value) || 0;
       const dif = conferido - esperado;
       const av = document.getElementById('avisoDivergencia');
-      if (conferido === 0) { av.classList.add('oculto'); return; }
+
+      if (conferido === 0) {
+        av.classList.add('oculto');
+        return;
+      }
+
       av.classList.remove('oculto', 'sim', 'nao');
-      if (dif === 0) { av.classList.add('nao'); av.innerHTML = '✅ Sem divergência'; }
-      else if (dif > 0) { av.classList.add('sim'); av.innerHTML = `⚠️ Sobrou R$ ${dif.toFixed(2)}`; }
-      else { av.classList.add('sim'); av.innerHTML = `⚠️ Faltou R$ ${Math.abs(dif).toFixed(2)}`; }
+      if (dif === 0) {
+        av.classList.add('nao');
+        av.innerHTML = '✅ Sem divergência — valores conferem!';
+      } else if (dif > 0) {
+        av.classList.add('sim');
+        av.innerHTML = `⚠️ Sobrou R$ ${dif.toFixed(2)}`;
+      } else {
+        av.classList.add('sim');
+        av.innerHTML = `⚠️ Faltou R$ ${Math.abs(dif).toFixed(2)}`;
+      }
     });
+
     document.getElementById('formFechar').addEventListener('submit', async e => {
       e.preventDefault();
-      if (!confirm('CONFIRMAR FECHAMENTO?')) return;
-      const res = await fetch('/api/caixa/fechar', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({
-          caixa_id: caixaAtual.id,
-          valor_conferido: document.getElementById('valorConferido').value,
-          observacao: document.getElementById('observacao').value.trim()
-        })
-      });
-      const d = await res.json();
-      if (d.ok) { mostrarAviso(d.mensagem, 'sucesso'); carregar(); }
-      else mostrarAviso(d.erro, 'erro');
+      if (!confirm('CONFIRMAR FECHAMENTO?\nDepois não será possível alterar!')) return;
+      try {
+        const res = await fetch('/api/caixa/fechar', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            caixa_id: caixaAtual.id,
+            valor_conferido: document.getElementById('valorConferido').value,
+            observacao: document.getElementById('observacao').value.trim()
+          })
+        });
+        const d = await res.json();
+        if (d.ok) {
+          mostrarAviso(d.mensagem, 'sucesso');
+          carregar();
+        } else {
+          mostrarAviso(d.erro || 'Erro ao fechar', 'erro');
+        }
+      } catch (e) {
+        mostrarAviso('Erro: ' + e.message, 'erro');
+      }
     });
+
     carregar();
   </script>
 </body>
