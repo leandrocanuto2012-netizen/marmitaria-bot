@@ -1,1 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controle de Fiado — Marmitária</title>
+  <style>
+    * {margin:0; padding:0; font-family: system-ui; box-sizing: border-box;}
+    body {background: #fef9f3; padding: 20px; max-width: 800px; margin: 0 auto;}
+    h1 {color: #d35400; margin-bottom: 20px;}
+    .voltar {display: inline-block; margin-bottom: 15px; color: #d35400; text-decoration: none;}
+    .resumo {background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); margin-bottom: 20px;}
+    .resumo-nome {font-size: 1.4em; font-weight: bold; margin-bottom: 15px;}
+    .resumo-linha {display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee;}
+    .resumo-linha.saldo {font-size: 1.3em; font-weight: bold; margin-top: 10px; border-bottom: 2px solid #ddd; padding: 15px 0;}
+    .saldo-devendo {color: #e74c3c;}
+    .saldo-credito {color: #27ae60;}
+    .limite-info {font-size: 0.9em; color: #888; margin-top: 5px;}
+    .card {background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); margin-bottom: 20px;}
+    input, button, select, textarea {padding: 12px; margin: 6px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; width: 100%;}
+    button {background: #27ae60; color: white; border: none; font-weight: bold; cursor: pointer;}
+    button.vermelho {background: #e74c3c;}
+    button.azul {background: #3498db;}
+    button.cinza {background: #95a5a6;}
+    .grid {display: grid; grid-template-columns: 1fr 1fr; gap: 10px;}
+    .mov-item {padding: 12px 0; border-bottom: 1px dashed #ddd;}
+    .mov-tipo {display: inline-block; padding: 3px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; margin-right: 8px;}
+    .mov-debito {background: #ffebee; color: #c62828;}
+    .mov-credito {background: #e8f5e9; color: #2e7d32;}
+    .mov-data {color: #888; font-size: 0.85em; margin-top: 4px;}
+    .mov-valor {font-weight: bold; text-align: right;}
+    .sem-mov {text-align: center; padding: 30px; color: #888;}
+    .aviso {padding: 10px 15px; border-radius: 8px; margin: 10px 0; display: none;}
+    .aviso.sucesso {background: #e8f5e9; border-left: 4px solid #27ae60;}
+    .aviso.erro {background: #ffebee; border-left: 4px solid #e74c3c;}
+    .aviso.limite {background: #fff3cd; border-left: 4px solid #f57c00; display: block;}
+  </style>
+</head>
+<body>
+  <a href="clientes.html" class="voltar">← Voltar para Clientes</a>
+  <h1>💰 Controle de Fiado</h1>
 
+  <div class="resumo">
+    <div class="resumo-nome" id="nomeCliente">Carregando...</div>
+    <div class="resumo-linha">
+      <span>Limite de Fiado</span>
+      <span id="limite">R$ 0,00</span>
+    </div>
+    <div class="resumo-linha">
+      <span>Utilizado</span>
+      <span id="utilizado">R$ 0,00</span>
+    </div>
+    <div class="resumo-linha saldo" id="linhaSaldo">
+      <span>Saldo Atual</span>
+      <span id="saldo">R$ 0,00</span>
+    </div>
+    <div class="limite-info" id="infoLimite"></div>
+  </div>
+
+  <div class="card">
+    <h3>➕ Lançar</h3>
+    <form id="formMov">
+      <input type="hidden" id="clienteId">
+      <select id="tipo" required>
+        <option value="DEBITO">💳 Débito — Compra a fiado</option>
+        <option value="CREDITO">💵 Crédito — Pagamento recebido</option>
+      </select>
+      <input type="number" id="valor" placeholder="Valor R$" step="0.01" required>
+      <textarea id="descricao" placeholder="Descrição / Observação"></textarea>
+      <div class="aviso" id="avisoLimite"></div>
+      <button type="submit">✅ Registrar</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>📋 Extrato — Últimos Lançamentos</h3>
+    <button class="cinza" style="width:auto; margin:10px 0;" onclick="carregarDados()">🔄 Atualizar</button>
+    <div id="listaMovimentos"></div>
+  </div>
+
+  <script>
+    let cliente = null;
+    let movimentos = [];
+
+    const params = new URLSearchParams(window.location.search);
+    const clienteId = params.get('cliente_id');
+    const nomeCliente = params.get('nome');
+
+    if (!clienteId) {
+      alert('Cliente não informado!');
+      window.location.href = 'clientes.html';
+    }
+
+    document.getElementById('nomeCliente').textContent = decodeURIComponent(nomeCliente || 'Cliente');
+    document.getElementById('clienteId').value = clienteId;
+
+    async function carregarDados() {
+      const resCli = await fetch(`/api/clientes/${clienteId}`);
+      cliente = await resCli.json();
+      
+      const resMov = await fetch(`/api/fiado/${clienteId}`);
+      movimentos = await resMov.json();
+
+      atualizarTela();
+    }
+
+    function atualizarTela() {
+      const saldo = parseFloat(cliente.saldo_fiado || 0);
+      const limite = parseFloat(cliente.limite_fiado || 500);
+      const utilizado = saldo > 0 ? saldo : 0;
+      const disponivel = limite - utilizado;
+
+      document.getElementById('limite').textContent = `R$ ${limite.toFixed(2)}`;
+      document.getElementById('utilizado').textContent = `R$ ${utilizado.toFixed(2)}`;
+      
+      const elSaldo = document.getElementById('saldo');
+      elSaldo.textContent = `R$ ${Math.abs(saldo).toFixed(2)}`;
+      document.getElementById('linhaSaldo').className = `resumo-linha saldo ${saldo > 0 ? 'saldo-devendo' : 'saldo-credito'}`;
+      
+      if (saldo > 0) {
+        document.getElementById('infoLimite').textContent = `Disponível: R$ ${disponivel.toFixed(2)}`;
+      } else if (saldo < 0) {
+        document.getElementById('infoLimite').textContent = `Crédito: R$ ${Math.abs(saldo).toFixed(2)}`;
+      } else {
+        document.getElementById('infoLimite').textContent = 'Sem saldo pendente';
+      }
+
+      const container = document.getElementById('listaMovimentos');
+      if (!movimentos || movimentos.length === 0) {
+        container.innerHTML = '<p class="sem-mov">Nenhum lançamento ainda</p>';
+        return;
+      }
+
+      container.innerHTML = movimentos.map(m => `
+        <div class="mov-item">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <span class="mov-tipo ${m.tipo === 'DEBITO' ? 'mov-debito' : 'mov-credito'}">
+                ${m.tipo === 'DEBITO' ? 'DÉBITO' : 'CRÉDITO'}
+              </span>
+              ${m.descricao || 'Sem descrição'}
+            </div>
+            <div class="mov-valor">
+              ${m.tipo === 'DEBITO' ? '-' : '+'} R$ ${parseFloat(m.valor).toFixed(2)}
+            </div>
+          </div>
+          <div class="mov-data">
+            ${new Date(m.data_movimento).toLocaleString('pt-BR')}
+            <button class="vermelho" style="margin-left:10px; padding:2px 6px; font-size:11px; width:auto;" onclick="excluirMov(${m.id})">🗑️</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    document.getElementById('valor').addEventListener('input', verificarLimite);
+    document.getElementById('tipo').addEventListener('change', verificarLimite);
+
+    function verificarLimite() {
+      const tipo = document.getElementById('tipo').value;
+      const valor = parseFloat(document.getElementById('valor').value) || 0;
+      const saldo = parseFloat(cliente?.saldo_fiado || 0);
+      const limite = parseFloat(cliente?.limite_fiado || 500);
+      
+      const aviso = document.getElementById('avisoLimite');
+      
+      if (tipo === 'DEBITO' && valor > 0) {
+        const novoSaldo = saldo + valor;
+        if (novoSaldo > limite) {
+          aviso.className = 'aviso limite';
+          aviso.innerHTML = `⚠️ Ultrapassa o limite! Limite: R$ ${limite.toFixed(2)} — Após lançamento: R$ ${novoSaldo.toFixed(2)}`;
+          aviso.style.display = 'block';
+        } else {
+          aviso.style.display = 'none';
+        }
+      } else {
+        aviso.style.display = 'none';
+      }
+    }
+
+    document.getElementById('formMov').addEventListener('submit', async e => {
+      e.preventDefault();
+      
+      const tipo = document.getElementById('tipo').value;
+      const valor = parseFloat(document.getElementById('valor').value);
+      const descricao = document.getElementById('descricao').value.trim() || 'Lançamento manual';
+      
+      if (!confirm(`Registrar ${tipo === 'DEBITO' ? 'DÉBITO' : 'CRÉDITO'} de R$ ${valor.toFixed(2)}?`)) return;
+
+      await fetch('/api/fiado', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          cliente_id: parseInt(clienteId),
+          tipo,
+          valor,
+          descricao
+        })
+      });
+
+      document.getElementById('valor').value = '';
+      document.getElementById('descricao').value = '';
+      carregarDados();
+    });
+
+    async function excluirMov(id) {
+      if (!confirm('Excluir este lançamento? O saldo será recalculado!')) return;
+      await fetch(`/api/fiado/${id}`, {method: 'DELETE'});
+      carregarDados();
+    }
+
+    carregarDados();
+  </script>
+</body>
+</html>
