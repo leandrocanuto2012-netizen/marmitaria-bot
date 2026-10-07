@@ -453,6 +453,180 @@ app.get('/api/resumo', async (req, res) => {
   }
 });
 
+// ===== API — CLIENTES =====
+
+// Verificar se cliente já existe
+app.get('/api/clientes/verificar/:telefone', async (req, res) => {
+  const { telefone } = req.params;
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, nome, telefone, restricoes FROM clientes WHERE telefone = $1',
+      [telefone.replace(/\D/g, '')]
+    );
+    if (rows.length > 0) {
+      res.json({ existe: true, cliente: rows[0] });
+    } else {
+      res.json({ existe: false });
+    }
+  } catch (e) {
+    res.status(500).json({ erro: e.message });
+  }
+});
+
+// Listar clientes
+app.get('/api/clientes', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM clientes ORDER BY ultimo_pedido DESC NULLS LAST'
+    );
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ erro: e.message });
+  }
+});
+
+// ===== API — FORNECEDORES =====
+
+// Listar fornecedores
+app.get('/api/fornecedores', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM fornecedores ORDER BY razao_social'
+    );
+    res.json(rows);
+  } catch (e) {
+    res.status(500).json({ erro: e.message });
+  }
+});
+
+// Cadastrar fornecedor
+app.post('/api/fornecedores', async (req, res) => {
+  const { razao_social, nome_fantasia, cnpj, telefone, email, endereco, categoria, contato, observacoes } = req.body;
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO fornecedores 
+       (razao_social, nome_fantasia, cnpj, telefone, email, endereco, categoria, contato, observacoes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [razao_social, nome_fantasia || null, cnpj || null, telefone || null, email || null, endereco || null, categoria || null, contato || null, observacoes || null]
+    );
+    res.json(rows[0]);
+  } catch (e) {
+    res.status(500).json({ erro: e.message });
+  }
+});
+
+// Ativar/desativar fornecedor
+app.patch('/api/fornecedores/:id/status', async (req, res) => {
+  const { id } = req.params;
+  const { ativo } = req.body;
+  try {
+    const { rows } = await pool.query(
+      'UPDATE fornecedores SET ativo = $1 WHERE id = $2 RETURNING *',
+      [ativo, id]
+    );
+    res.json(rows[0]);
+  } catch (e) {
+    res.status(500).json({ erro: e.message });
+  }
+});
+
+// ===== ATUALIZAÇÃO — Modifica a rota de criar pedido para cadastrar cliente =====
+// SUBSTITUI a rota app.post('/api/pedidos' existente por esta:
+
+app.post('/api/pedidos', async (req, res) => {
+  const { telefone, nome, email, restricoes, itens, tipo, observacao } = req.body;
+  const telefoneLimpo = limparTelefone(telefone);
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // 1️⃣ Cadastra ou atualiza cliente automaticamente
+    let clienteId;
+    const clienteExistente = await client.query(
+      'SELECT id, restricoes FROM clientes WHERE telefone = $1',
+      [telefoneLimpo]
+    );
+
+    if (clienteExistente.rows.length > 0) {
+      // Atualiza dados do cliente
+      clienteId = clienteExistente.rows[0].id;
+      await client.query(
+        `UPDATE clientes 
+         SET nome = $1, email = COALESCE($2, email), 
+             restricoes = CASE WHEN $3 IS NOT NULL AND $3 <> '' THEN $3 ELSE restricoes END,
+             ultimo_pedido = CURRENT_TIMESTAMP,
+             total_pedidos = total_pedidos + 1
+         WHERE id = $4`,
+        [nome, email, restricoes, clienteId]
+      );
+    } else {
+      // Novo cadastro
+      const novoCliente = await client.query(
+        `INSERT INTO clientes (nome, telefone, email, restricoes, total_pedidos, ultimo_pedido)
+         VALUES ($1, $2, $3, $4, 1, CURRENT_TIMESTAMP) RETURNING id`,
+        [nome, telefoneLimpo, email || null, restricoes || null]
+      );
+      clienteId = novoCliente.rows[0].id;
+    }
+
+    // 2️⃣ Calcular valor total
+    let valorTotal = 0;
+    for (const item of itens) {
+      const prod = await client.query(
+        'SELECT preco, estoque_atual FROM produtos WHERE id = $1',
+        [item.produto_id]
+      );
+      if (!prod.rows.length) throw new Error(`Produto ${item.produto_id} não encontrado`);
+      if (prod.rows[0].estoque_atual < item.quantidade) {
+        throw new Error(`Estoque insuficiente: ${prod.rows[0].nome}`);
+      }
+      valorTotal += prod.rows[0].preco * item.quantidade;
+    }
+
+    // 3️⃣ Inserir pedido vinculado ao cliente
+    const pedidoResult = await client.query(
+      `INSERT INTO pedidos 
+       (telefone_cliente, nome_cliente, cliente_id, valor_total, tipo, observacao)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id, valor_total, created_at`,
+      [telefoneLimpo, nome, clienteId, valorTotal, tipo, observacao]
+    );
+    const pedidoId = pedidoResult.rows[0].id;
+
+    // 4️⃣ Inserir itens e baixar estoque
+    for (const item of itens) {
+      const prod = await client.query('SELECT preco FROM produtos WHERE id = $1', [item.produto_id]);
+      await client.query(
+        `INSERT INTO pedido_itens (pedido_id, produto_id, quantidade, preco_unitario)
+         VALUES ($1, $2, $3, $4)`,
+        [pedidoId, item.produto_id, item.quantidade, prod.rows[0].preco]
+      );
+      await client.query(
+        'UPDATE produtos SET estoque_atual = estoque_atual - $1 WHERE id = $2',
+        [item.quantidade, item.produto_id]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    // 5️⃣ Mensagem com restrições se houver
+    let msgCliente = `✅ Pedido recebido!\n\nPedido #${pedidoId}\nValor: R$ ${valorTotal.toFixed(2)}`;
+    if (restricoes) {
+      msgCliente += `\n⚠️ Atenção: Restrições alimentares registradas!`;
+    }
+    msgCliente += `\nEm breve estará pronto! 🥘`;
+
+    await enviarMensagem(telefoneLimpo, msgCliente);
+
+    res.json({ sucesso: true, pedidoId, valorTotal });
+  } catch (e) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ erro: e.message });
+  } finally {
+    client.release();
+  }
+});
+
 // ===== INICIAR SERVIDOR =====
 app.listen(CONFIG.PORT, () => {
   console.log(`🚀 SERVIDOR ONLINE — Porta ${CONFIG.PORT}`);
