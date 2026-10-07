@@ -284,6 +284,10 @@
   </div>
 
   <script>
+    // Bloqueia acesso sem login
+    if (localStorage.getItem('logado') !== 'sim') {
+      window.location.href = 'login.html';
+    }
     async function carregarResumo() {
       try {
         const res = await fetch('/api/resumo');
