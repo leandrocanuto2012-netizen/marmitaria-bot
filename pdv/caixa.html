@@ -3,98 +3,161 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PDV — Caixa</title>
+  <title>Caixa / PDV — Marmitária</title>
   <style>
     * {margin:0; padding:0; font-family: system-ui; box-sizing: border-box;}
-    body {background: #f5f5f5; padding: 20px; max-width: 900px; margin: 0 auto;}
+    body {background: #f5f5f5; padding: 20px; max-width: 600px; margin: 0 auto;}
     h1 {color: #2d3436; margin-bottom: 20px;}
-    .card {background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);}
-    input, button {padding: 12px; margin: 5px; border-radius: 8px; border: 1px solid #ddd; font-size: 16px;}
-    button {background: #27ae60; color: white; border: none; cursor: pointer; font-weight: bold;}
+    .caixa-aberto {background: #d4edda; border-left: 5px solid #27ae60; padding: 15px; border-radius: 10px; margin-bottom: 20px;}
+    .caixa-fechado {background: #f8d7da; border-left: 5px solid #dc3545; padding: 15px; border-radius: 10px; margin-bottom: 20px;}
+    form {background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.08);}
+    input, button {padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; width: 100%;}
+    button {background: #27ae60; color: white; border: none; font-weight: bold; cursor: pointer;}
     button.vermelho {background: #e74c3c;}
     button.azul {background: #3498db;}
-    .valor {font-size: 28px; font-weight: bold; color: #27ae60; margin: 10px 0;}
-    table {width: 100%; border-collapse: collapse; margin-top: 15px;}
-    th, td {padding: 10px; text-align: left; border-bottom: 1px solid #eee;}
-    .status {padding: 4px 10px; border-radius: 12px; font-size: 13px;}
-    .aberto {background: #d5f4e6; color: #27ae60;}
-    .fechado {background: #fde8e8; color: #e74c3c;}
+    .mov {background: white; padding: 12px; border-radius: 8px; margin-bottom: 8px; border-left: 4px solid #ccc;}
+    .entrada {border-left-color: #27ae60;}
+    .saida {border-left-color: #e74c3c;}
+    .voltar {display: inline-block; margin-bottom: 15px; color: #d35400; text-decoration: none;}
+    .resumo {display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee;}
   </style>
 </head>
 <body>
-  <h1>💰 Controle de Caixa</h1>
+  <a href="../index.html" class="voltar">← Página Inicial</a>
+  <h1>💰 Caixa / PDV</h1>
 
-  <div class="card" id="abertura">
+  <div id="statusCaixa"></div>
+
+  <form id="formAbrir" style="display:none;">
     <h3>Abrir Caixa</h3>
-    <input type="text" id="operador" placeholder="Nome do operador">
-    <input type="number" id="saldoInicial" placeholder="Saldo inicial" step="0.01">
-    <button onclick="abrirCaixa()">Abrir Caixa</button>
-  </div>
+    <input type="text" id="operador" placeholder="Nome do operador" required>
+    <input type="number" id="saldoInicial" placeholder="Saldo inicial R$" step="0.01" value="0">
+    <button type="submit">🔓 Abrir Caixa</button>
+  </form>
 
-  <div class="card" id="caixaAberto" style="display:none">
-    <h3>Caixa Aberto</h3>
-    <p>Operador: <span id="nomeOperador"></span></p>
-    <p>Saldo Inicial: R$ <span id="saldoIni"></span></p>
-    <p class="valor">Saldo Atual: R$ <span id="saldoAtual"></span></p>
-    
-    <h4>Registrar Movimento</h4>
-    <select id="tipoMov">
-      <option value="entrada">Entrada (Venda)</option>
-      <option value="saida">Saída</option>
-    </select>
-    <input type="number" id="valorMov" placeholder="Valor" step="0.01">
-    <input type="text" id="descMov" placeholder="Descrição">
-    <button class="azul" onclick="registrarMov()">Registrar</button>
-    
-    <br><br>
-    <button class="vermelho" onclick="fecharCaixa()">Fechar Caixa</button>
+  <div id="painelAberto" style="display:none;">
+    <form id="formMovimento">
+      <h3>Registrar Movimento</h3>
+      <select id="tipo" style="width:100%; padding:12px; margin:8px 0; border-radius:8px; border:1px solid #ddd;">
+        <option value="entrada">Entrada</option>
+        <option value="saida">Saída</option>
+      </select>
+      <input type="number" id="valor" placeholder="Valor R$" step="0.01" required>
+      <input type="text" id="descricao" placeholder="Descrição" required>
+      <button type="submit" class="azul">📝 Registrar</button>
+    </form>
+
+    <div style="margin-top:20px;">
+      <h3>Movimentos</h3>
+      <div id="listaMovimentos"></div>
+    </div>
+
+    <form id="formFechar" style="margin-top:20px;">
+      <h3>Fechar Caixa</h3>
+      <div class="resumo"><strong>Saldo Inicial:</strong> <span id="saldoIni">R$ 0,00</span></div>
+      <div class="resumo"><strong>Total Entradas:</strong> <span id="totalEnt">R$ 0,00</span></div>
+      <div class="resumo"><strong>Total Saídas:</strong> <span id="totalSai">R$ 0,00</span></div>
+      <div class="resumo" style="font-size:1.2em; font-weight:bold; color:#27ae60;">
+        <strong>Saldo Final:</strong> <span id="saldoFim">R$ 0,00</span>
+      </div>
+      <button type="submit" class="vermelho" style="margin-top:15px;">🔒 Fechar Caixa</button>
+    </form>
   </div>
 
   <script>
+    let caixaAtual = null;
+
     async function verificarCaixa() {
       const res = await fetch('/api/resumo');
       const dados = await res.json();
-      if (dados.caixaAberto) {
-        document.getElementById('abertura').style.display = 'none';
-        document.getElementById('caixaAberto').style.display = 'block';
-        document.getElementById('nomeOperador').innerText = dados.caixaAberto.operador;
-        document.getElementById('saldoIni').innerText = dados.caixaAberto.saldo_inicial.toFixed(2);
-        document.getElementById('saldoAtual').innerText = (dados.caixaAberto.saldo_inicial + dados.vendasHoje).toFixed(2);
+      caixaAtual = dados.caixaAberto;
+      
+      if (caixaAtual) {
+        document.getElementById('statusCaixa').innerHTML = `
+          <div class="caixa-aberto">
+            ✅ CAIXA ABERTO<br>
+            Operador: <strong>${caixaAtual.operador}</strong><br>
+            Abertura: ${new Date(caixaAtual.abertura).toLocaleTimeString('pt-BR')}
+          </div>
+        `;
+        document.getElementById('formAbrir').style.display = 'none';
+        document.getElementById('painelAberto').style.display = 'block';
+        carregarMovimentos();
+      } else {
+        document.getElementById('statusCaixa').innerHTML = `
+          <div class="caixa-fechado">
+            🔴 CAIXA FECHADO
+          </div>
+        `;
+        document.getElementById('formAbrir').style.display = 'block';
+        document.getElementById('painelAberto').style.display = 'none';
       }
     }
 
-    async function abrirCaixa() {
-      const operador = document.getElementById('operador').value;
-      const saldo = parseFloat(document.getElementById('saldoInicial').value || 0);
+    document.getElementById('formAbrir').addEventListener('submit', async e => {
+      e.preventDefault();
       await fetch('/api/caixa/abrir', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({operador, saldoInicial: saldo})
+        body: JSON.stringify({
+          operador: document.getElementById('operador').value,
+          saldoInicial: parseFloat(document.getElementById('saldoInicial').value) || 0
+        })
       });
+      e.target.reset();
       verificarCaixa();
-    }
+    });
 
-    async function registrarMov() {
+    document.getElementById('formMovimento').addEventListener('submit', async e => {
+      e.preventDefault();
       await fetch('/api/caixa/movimento', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-          tipo: document.getElementById('tipoMov').value,
-          valor: parseFloat(document.getElementById('valorMov').value),
-          descricao: document.getElementById('descMov').value
+          tipo: document.getElementById('tipo').value,
+          valor: parseFloat(document.getElementById('valor').value),
+          descricao: document.getElementById('descricao').value
         })
       });
-      document.getElementById('valorMov').value = '';
-      document.getElementById('descMov').value = '';
-      verificarCaixa();
+      e.target.reset();
+      carregarMovimentos();
+    });
+
+    async function carregarMovimentos() {
+      // Calcula totais da sessão
+      const resPed = await fetch('/api/pedidos');
+      const pedidos = await resPed.json();
+      const hoje = new Date().toISOString().split('T')[0];
+      const vendasHoje = pedidos.filter(p => p.created_at.startsWith(hoje) && p.status === 'entregue');
+      
+      const totalEntradas = vendasHoje.reduce((s, p) => s + parseFloat(p.valor_total), 0);
+      const saldoInicial = caixaAtual ? parseFloat(caixaAtual.saldo_inicial) : 0;
+      
+      document.getElementById('saldoIni').innerText = `R$ ${saldoInicial.toFixed(2)}`;
+      document.getElementById('totalEnt').innerText = `R$ ${totalEntradas.toFixed(2)}`;
+      document.getElementById('totalSai').innerText = 'R$ 0,00';
+      document.getElementById('saldoFim').innerText = `R$ ${(saldoInicial + totalEntradas).toFixed(2)}`;
+
+      const lista = document.getElementById('listaMovimentos');
+      if (vendasHoje.length === 0) {
+        lista.innerHTML = '<p style="color:#888; padding:10px;">Nenhuma venda registrada hoje</p>';
+      } else {
+        lista.innerHTML = vendasHoje.map(p => `
+          <div class="mov entrada">
+            <strong>Pedido #${p.id}</strong><br>
+            ${p.nome_cliente || 'Cliente'} — R$ ${parseFloat(p.valor_total).toFixed(2)}<br>
+            <small>${new Date(p.created_at).toLocaleTimeString('pt-BR')}</small>
+          </div>
+        `).join('');
+      }
     }
 
-    async function fecharCaixa() {
-      if (!confirm('Confirma fechamento do caixa?')) return;
-      await fetch('/api/caixa/fechar', {method: 'POST'});
-      alert('Caixa fechado! ✅');
-      location.reload();
-    }
+    document.getElementById('formFechar').addEventListener('submit', async e => {
+      e.preventDefault();
+      if (!confirm('Confirma FECHAR o caixa? Não será possível registrar vendas até reabrir!')) return;
+      await fetch('/api/caixa/fechar', { method: 'POST' });
+      verificarCaixa();
+    });
 
     verificarCaixa();
   </script>
