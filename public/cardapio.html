@@ -1,1 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cardápio — Marmitária</title>
+  <style>
+    * {margin:0; padding:0; font-family: system-ui; box-sizing: border-box;}
+    body {background: #fef6e4; padding: 20px; max-width: 800px; margin: 0 auto;}
+    h1 {color: #d35400; text-align: center; margin-bottom: 30px;}
+    .categoria {margin-bottom: 25px;}
+    .categoria h2 {color: #2d3436; border-bottom: 2px solid #d35400; padding-bottom: 8px; margin-bottom: 15px;}
+    .produto {background: white; padding: 15px; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);}
+    .produto h3 {color: #2d3436;}
+    .preco {color: #27ae60; font-weight: bold; font-size: 18px; margin-top: 5px;}
+    .pedir-btn {background: #d35400; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 16px; margin-top: 10px; width: 100%;}
+    .pedir-btn:hover {background: #e67e22;}
+    .carrinho {position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: white; padding: 15px 25px; border-radius: 50px; box-shadow: 0 -3px 15px rgba(0,0,0,0.15); display: flex; gap: 15px; align-items: center;}
+    .carrinho span {font-weight: bold; font-size: 18px;}
+    .finalizar {background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 25px; cursor: pointer; font-weight: bold;}
+  </style>
+</head>
+<body>
+  <h1>🍽️ Nosso Cardápio</h1>
+  <div id="lista"></div>
+  
+  <div class="carrinho" id="carrinho" style="display:none">
+    <span id="total">R$ 0,00</span>
+    <button class="finalizar" onclick="irParaPedido()">Finalizar Pedido</button>
+  </div>
 
+  <script>
+    let carrinho = [];
+    async function carregar() {
+      const res = await fetch('/api/produtos');
+      const produtos = await res.json();
+      const lista = document.getElementById('lista');
+      const categorias = [...new Set(produtos.map(p => p.categoria))];
+      
+      categorias.forEach(cat => {
+        lista.innerHTML += `<div class="categoria"><h2>${cat}</h2>`;
+        produtos.filter(p => p.categoria === cat).forEach(p => {
+          lista.innerHTML += `
+            <div class="produto">
+              <h3>${p.nome}</h3>
+              <p>${p.descricao || ''}</p>
+              <p class="preco">R$ ${p.preco.toFixed(2)}</p>
+              <button class="pedir-btn" onclick="adicionar(${p.id}, '${p.nome}', ${p.preco})">Adicionar</button>
+            </div>`;
+        });
+        lista.innerHTML += `</div>`;
+      });
+    }
+
+    function adicionar(id, nome, preco) {
+      carrinho.push({id, nome, preco, qtd: 1});
+      atualizarCarrinho();
+    }
+
+    function atualizarCarrinho() {
+      const total = carrinho.reduce((s, i) => s + i.preco, 0);
+      document.getElementById('total').innerText = `R$ ${total.toFixed(2)}`;
+      document.getElementById('carrinho').style.display = 'flex';
+      localStorage.setItem('carrinho', JSON.stringify(carrinho));
+    }
+
+    function irParaPedido() {
+      window.location.href = '/pedido.html';
+    }
+
+    carregar();
+  </script>
+</body>
+</html>
