@@ -627,6 +627,95 @@ app.post('/api/pedidos', async (req, res) => {
   }
 });
 
+// ANÁLISE DE VENDAS POR DIA DA SEMANA
+app.get('/api/analise-vendas', async (req, res) => {
+  try {
+    const diaSemana = parseInt(req.query.dia_semana || '1'); // 0=Dom, 1=Seg...
+    
+    // Pega os últimos 4 dias com esse dia da semana
+    const semanas = [];
+    const ranking = {};
+    
+    const result = await pool.query(`
+      SELECT 
+        EXTRACT(DOW FROM created_at) as dia_semana,
+        DATE(created_at) as data,
+        DATE_TRUNC('week', created_at) as semana,
+        p.id,
+        p.nome_cliente,
+        p.valor_total,
+        p.status,
+        pi.nome_produto,
+        pi.quantidade,
+        pi.preco_unitario
+      FROM pedidos p
+      LEFT JOIN pedido_itens pi ON p.id = pi.pedido_id
+      WHERE EXTRACT(DOW FROM p.created_at) = $1
+        AND p.status = 'entregue'
+        AND p.created_at >= NOW() - INTERVAL '60 days'
+      ORDER BY data DESC, p.id DESC
+    `, [diaSemana]);
+
+    const agrupado = {};
+    result.rows.forEach(row => {
+      const data = row.data;
+      if (!agrupado[data]) {
+        agrupado[data] = { valor_total: 0, qtd_pedidos: 0, semana: row.semana, pedidos: {} };
+      }
+      agrupado[data].valor_total += parseFloat(row.valor_total || 0);
+      
+      if (!agrupado[data].pedidos[row.id]) {
+        agrupado[data].pedidos[row.id] = true;
+        agrupado[data].qtd_pedidos++;
+      }
+      
+      // Ranking de itens
+      if (row.nome_produto) {
+        if (!ranking[row.nome_produto]) {
+          ranking[row.nome_produto] = { nome: row.nome_produto, qtd: 0, total: 0 };
+        }
+        ranking[row.nome_produto].qtd += parseInt(row.quantidade || 1);
+        ranking[row.nome_produto].total += parseFloat(row.preco_unitario || 0) * parseInt(row.quantidade || 1);
+      }
+    });
+
+    // Monta lista das últimas 4 ocorrências
+    const datasOrdenadas = Object.keys(agrupado).sort((a,b) => b.localeCompare(a)).slice(0,4);
+    datasOrdenadas.forEach(data => {
+      semanas.push({
+        data: new Date(data + 'T00:00:00').toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'}),
+        valor_total: agrupado[data].valor_total,
+        qtd_pedidos: agrupado[data].qtd_pedidos
+      });
+    });
+
+    // Cálculos
+    const valores = semanas.map(s => s.valor_total);
+    const media_geral = valores.length ? valores.reduce((a,b) => a+b, 0) / valores.length : 0;
+    const crescimento = valores.length >= 2 
+      ? ((valores[0] - valores[1]) / valores[1]) * 100 
+      : 0;
+    const variacao = [];
+    for (let i = 1; i < valores.length; i++) {
+      variacao.push(valores[i] ? ((valores[0] - valores[i]) / valores[i]) * 100 : 0);
+    }
+
+    // Ranking ordenado
+    const rankingOrdenado = Object.values(ranking).sort((a,b) => b.total - a.total);
+
+    res.json({
+      semanas,
+      media_geral,
+      crescimento,
+      variacao,
+      ranking: rankingOrdenado
+    });
+  } catch (e) {
+    console.error('Análise de vendas:', e);
+    res.json({ semanas: [], media_geral: 0, crescimento: 0, variacao: [], ranking: [] });
+  }
+});
+
 // ===== INICIAR SERVIDOR =====
 app.listen(CONFIG.PORT, () => {
   console.log(`🚀 SERVIDOR ONLINE — Porta ${CONFIG.PORT}`);
