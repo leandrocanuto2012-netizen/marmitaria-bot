@@ -55,6 +55,7 @@
     .card h2 {
       font-size: 1.3rem;
       margin-bottom: 8px;
+      color: #2d3436;
     }
     .card p {
       color: #7f8c8d;
@@ -64,6 +65,7 @@
     .card.pdv { border-left: 5px solid #27ae60; }
     .card.estoque { border-left: 5px solid #3498db; }
     .card.pedidos { border-left: 5px solid #9b59b6; }
+    .card.fornecedores { border-left: 5px solid #e67e22; }
     .icone { font-size: 2rem; margin-bottom: 10px; }
     .status-bar {
       background: white;
@@ -71,6 +73,10 @@
       border-radius: 12px;
       margin-top: 20px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .status-bar h3 {
+      margin-bottom: 12px;
+      color: #2d3436;
     }
     .status-item {
       display: flex;
@@ -100,6 +106,7 @@
     </header>
 
     <div class="grid">
+      <!-- Área do Cliente -->
       <a href="cardapio.html" class="card cliente">
         <div class="icone">📋</div>
         <h2>Cardápio Digital</h2>
@@ -111,13 +118,8 @@
         <h2>Meu Pedido</h2>
         <p>Finalizar compra</p>
       </a>
-      
-      <a href="pdv/fornecedores.html" class="card estoque">
-        <div class="icone">🤝</div>
-        <h2>Fornecedores</h2>
-        <p>Cadastrar e gerenciar fornecedores</p>
-      </a>
-      
+
+      <!-- Área Interna / PDV -->
       <a href="pdv/caixa.html" class="card pdv">
         <div class="icone">💰</div>
         <h2>Caixa / PDV</h2>
@@ -135,10 +137,16 @@
         <h2>Estoque</h2>
         <p>Cadastrar e controlar produtos</p>
       </a>
+
+      <a href="pdv/fornecedores.html" class="card fornecedores">
+        <div class="icone">🤝</div>
+        <h2>Fornecedores</h2>
+        <p>Cadastrar e gerenciar fornecedores</p>
+      </a>
     </div>
 
     <div class="status-bar">
-      <h3 style="margin-bottom: 12px; color: #2d3436;">📊 Resumo do Dia</h3>
+      <h3>📊 Resumo do Dia</h3>
       <div class="status-item">
         <span>Vendas Hoje</span>
         <span class="valor-destaque" id="vendasHoje">R$ 0,00</span>
