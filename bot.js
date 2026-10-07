@@ -1,47 +1,36 @@
-const cardapio = `
-🍽️ *CARDÁPIO DO DIA*
-━━━━━━━━━━━━━━━━━━━━
-🥗 Salada Completa — R$ 12,00
-🍖 Carne de Sol com Arroz — R$ 25,00
-🐔 Frango Grelhado — R$ 22,00
-🍝 Macarrão ao Molho — R$ 18,00
-🥩 Feijoada Completa — R$ 28,00
-🧃 Suco Natural — R$ 6,00
-🥤 Refrigerante — R$ 5,00
-━━━━━━━━━━━━━━━━━━━━
-📲 Diga o nome do prato + quantidade para pedir!
-💳 Aceitamos: Pix, Dinheiro, Cartão
-🏠 Retirada no balcão
-`;
+module.exports.processar = async function(telefone, texto, pool) {
+  const msg = texto.toLowerCase().trim();
 
-async function processar(telefone, mensagem, pool) {
-  const msg = mensagem.toLowerCase().trim();
-
-  if (['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite'].includes(msg)) {
-    return `Olá! Seja bem-vindo(a) à Marmitária! 😊\n\n${cardapio}`;
+  // Cardápio
+  if (msg.includes('cardapio') || msg.includes('menu') || msg.includes('preço')) {
+    const { rows } = await pool.query('SELECT nome, preco FROM produtos WHERE ativo = true ORDER BY categoria, nome');
+    let resposta = '📋 *Nosso Cardápio:*\n\n';
+    rows.forEach(p => {
+      resposta += `🍽️ ${p.nome} — R$ ${p.preco.toFixed(2)}\n`;
+    });
+    resposta += '\nPara pedir, acesse: seusite.com/pedido.html \nOu diga "pedir"!';
+    return resposta;
   }
 
-  if (['cardápio', 'cardapio', 'menu', 'opções', 'preço', 'precos'].includes(msg)) {
-    return cardapio;
+  // Saudação
+  if (msg.match(/^(oi|olá|ola|bom dia|boa tarde|boa noite|tudo bem)/)) {
+    return 'Olá! 😊 Seja bem-vindo(a)! Digite *cardápio* para ver nossos pratos ou *pedir* para fazer seu pedido.';
   }
 
-  if (['horário', 'horario', 'funcionamento', 'abre', 'aberto'].includes(msg)) {
-    return '🕒 Funcionamos de Segunda a Sábado, das 10h às 14h.\nRetirada no balcão!';
+  // Fazer pedido
+  if (msg.includes('pedir') || msg.includes('pedido')) {
+    return 'Perfeito! 🥘 Acesse nosso cardápio e faça seu pedido direto:\n\n👉 seusite.com/pedido.html\n\nEscolha os pratos, confirme e já preparamos!';
   }
 
-  if (['fiado', 'crédito', 'credito', 'conta'].includes(msg)) {
-    return '📋 Temos sistema de fiado sim!\nProcure o atendente no balcão para cadastrar. ✅';
+  // Horário
+  if (msg.includes('horário') || msg.includes('funciona')) {
+    return '🕒 Funcionamos de Segunda a Sábado, das 11h às 14h e das 18h às 21h!';
   }
 
-  if (['ifood', 'i-food', 'entrega'].includes(msg)) {
-    return '🚀 Estamos no iFood também!\nOu retire direto aqui na loja — mais rápido e sem taxa de entrega! 📦';
+  // Ajuda
+  if (msg.includes('ajuda') || msg === 'ajuda') {
+    return 'Comandos disponíveis:\n📋 *Cardápio* — ver pratos\n🛒 *Pedir* — fazer pedido\n🕒 *Horário* — horário de atendimento\n💬 Fale com o atendente a qualquer momento!';
   }
 
-  if (['ajuda', 'comandos'].includes(msg)) {
-    return `Comandos que eu entendo:\n\n📋 "Cardápio" — ver opções\n🕒 "Horário" — funcionamento\n💰 "Fiado" — crédito\n📦 "iFood" — entrega\n\nÉ só falar! 😊`;
-  }
-
-  return `Desculpa, não entendi! 😅\n\nDiga "Cardápio" para ver nossas opções ou "Ajuda" para saber o que eu posso fazer!`;
-}
-
-module.exports = { processar };
+  return null; // Deixa sem resposta se não entender
+};
