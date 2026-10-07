@@ -151,5 +151,20 @@ app.post('/api/pedidos/manual', async (req, res) => {
   }
 });
 
+// Listar produtos para o cardápio
+app.get('/api/produtos', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT name, price, stock 
+      FROM products 
+      ORDER BY id
+    `);
+    res.json(result.rows);
+  } catch (e) {
+    console.error('Cardápio:', e);
+    res.status(500).json({ erro: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => console.log(`🚀 Servidor rodando na porta ${PORT}`));
