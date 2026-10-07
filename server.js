@@ -57,15 +57,24 @@ app.get('/api/cardapio', async (req, res) => {
 app.get('/api/caixa/atual', async (req, res) => {
   try {
     const result = await pool.query(`SELECT * FROM caixas WHERE status = 'aberto' ORDER BY data_abertura DESC LIMIT 1`);
-    if (result.rows.length === 0) return res.json({ aberto: false });
+    if (result.rows.length === 0) {
+      return res.json({ aberto: false });
+    }
     const caixa = result.rows[0];
     const movs = await pool.query(`SELECT * FROM caixa_movimentos WHERE caixa_id = $1 ORDER BY created_at DESC`, [caixa.id]);
-    let valor_esperado = parseFloat(caixa.valor_inicial);
+    let valor_esperado = parseFloat(caixa.valor_inicial) || 0;
     movs.rows.forEach(m => {
       if (m.tipo === 'entrada') valor_esperado += parseFloat(m.valor);
       if (m.tipo === 'saida') valor_esperado -= parseFloat(m.valor);
     });
-    res.json({ aberto: true, caixa: { ...caixa, valor_esperado, movimentos: movs.rows } });
+    res.json({ 
+      aberto: true, 
+      caixa: { 
+        ...caixa, 
+        valor_esperado, 
+        movimentos: movs.rows 
+      } 
+    });
   } catch (e) {
     console.error('Caixa atual:', e);
     res.status(500).json({ erro: e.message });
@@ -76,8 +85,13 @@ app.post('/api/caixa/abrir', async (req, res) => {
   try {
     const { operador_nome, valor_inicial } = req.body;
     const existe = await pool.query(`SELECT id FROM caixas WHERE status = 'aberto' LIMIT 1`);
-    if (existe.rows.length > 0) return res.status(400).json({ erro: 'Já existe um caixa aberto!' });
-    const result = await pool.query(`INSERT INTO caixas (operador_nome, valor_inicial, valor_esperado, status) VALUES ($1, $2, $2, 'aberto') RETURNING *`, [operador_nome, parseFloat(valor_inicial) || 0]);
+    if (existe.rows.length > 0) {
+      return res.status(400).json({ erro: 'Já existe um caixa aberto!' });
+    }
+    const result = await pool.query(
+      `INSERT INTO caixas (operador_nome, valor_inicial, valor_esperado, status) VALUES ($1, $2, $2, 'aberto') RETURNING *`,
+      [operador_nome, parseFloat(valor_inicial) || 0]
+    );
     res.json({ ok: true, caixa: result.rows[0] });
   } catch (e) {
     console.error('Abrir caixa:', e);
@@ -88,10 +102,13 @@ app.post('/api/caixa/abrir', async (req, res) => {
 app.post('/api/caixa/movimento', async (req, res) => {
   try {
     const { caixa_id, tipo, valor, descricao, forma_pagamento, usuario } = req.body;
-    await pool.query(`INSERT INTO caixa_movimentos (caixa_id, tipo, valor, descricao, forma_pagamento, usuario) VALUES ($1, $2, $3, $4, $5, $6)`, [caixa_id, tipo, valor, descricao, forma_pagamento, usuario]);
+    await pool.query(
+      `INSERT INTO caixa_movimentos (caixa_id, tipo, valor, descricao, forma_pagamento, usuario) VALUES ($1, $2, $3, $4, $5, $6)`,
+      [caixa_id, tipo, valor, descricao, forma_pagamento, usuario]
+    );
     const caixa = await pool.query(`SELECT valor_esperado FROM caixas WHERE id = $1`, [caixa_id]);
     if (!caixa.rows.length) return res.status(404).json({ erro: 'Caixa não encontrado' });
-    let novoValor = parseFloat(caixa.rows[0].valor_esperado);
+    let novoValor = parseFloat(caixa.rows[0].valor_esperado) || 0;
     if (tipo === 'entrada') novoValor += parseFloat(valor);
     if (tipo === 'saida') novoValor -= parseFloat(valor);
     await pool.query(`UPDATE caixas SET valor_esperado = $1 WHERE id = $2`, [novoValor, caixa_id]);
@@ -107,11 +124,22 @@ app.post('/api/caixa/fechar', async (req, res) => {
     const { caixa_id, valor_conferido, observacao } = req.body;
     const caixa = await pool.query(`SELECT * FROM caixas WHERE id = $1`, [caixa_id]);
     if (!caixa.rows.length) return res.status(404).json({ erro: 'Caixa não encontrado' });
-    if (caixa.rows[0].status !== 'aberto') return res.status(400).json({ erro: 'Este caixa já está fechado!' });
-    const esperado = parseFloat(caixa.rows[0].valor_esperado);
-    const conferido = parseFloat(valor_conferido);
+    if (caixa.rows[0].status !== 'aberto') {
+      return res.status(400).json({ erro: 'Este caixa já está fechado!' });
+    }
+    const esperado = parseFloat(caixa.rows[0].valor_esperado) || 0;
+    const conferido = parseFloat(valor_conferido) || 0;
     const divergencia = conferido - esperado;
-    const result = await pool.query(`UPDATE caixas SET data_fechamento = NOW(), valor_conferido = $1, divergencia = $2, status = 'fechado', observacao = $3 WHERE id = $4 RETURNING *`, [conferido, divergencia, observacao || null, caixa_id]);
+    const result = await pool.query(
+      `UPDATE caixas SET 
+        data_fechamento = NOW(),
+        valor_conferido = $1,
+        divergencia = $2,
+        status = 'fechado',
+        observacao = $3
+       WHERE id = $4 RETURNING *`,
+      [conferido, divergencia, observacao || null, caixa_id]
+    );
     let mensagem = '✅ Caixa fechado com sucesso!';
     if (divergencia > 0) mensagem = `⚠️ Sobrou R$ ${divergencia.toFixed(2)}`;
     if (divergencia < 0) mensagem = `⚠️ Faltou R$ ${Math.abs(divergencia).toFixed(2)}`;
