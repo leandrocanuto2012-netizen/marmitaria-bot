@@ -716,6 +716,36 @@ app.get('/api/analise-vendas', async (req, res) => {
   }
 });
 
+// === LANÇAR VENDA MANUAL ===
+app.post('/api/pedidos/manual', async (req, res) => {
+  try {
+    const { nome_cliente, telefone_cliente, tipo, observacao, valor_total, itens, status } = req.body;
+    
+    // Insere o pedido
+    const pedidoRes = await pool.query(`
+      INSERT INTO pedidos 
+      (nome_cliente, telefone_cliente, tipo, observacao, valor_total, status)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING *
+    `, [nome_cliente, telefone_cliente, tipo, observacao, valor_total, status]);
+    
+    const pedido = pedidoRes.rows[0];
+    
+    // Insere os itens
+    for (const item of itens) {
+      await pool.query(`
+        INSERT INTO pedido_itens (pedido_id, nome_produto, quantidade, preco_unitario)
+        VALUES ($1, $2, $3, $4)
+      `, [pedido.id, item.nome, item.quantidade, item.preco_unitario]);
+    }
+    
+    res.json(pedido);
+  } catch (e) {
+    console.error('Venda manual:', e);
+    res.status(500).json({erro: e.message});
+  }
+});
+
 // ===== INICIAR SERVIDOR =====
 app.listen(CONFIG.PORT, () => {
   console.log(`🚀 SERVIDOR ONLINE — Porta ${CONFIG.PORT}`);
