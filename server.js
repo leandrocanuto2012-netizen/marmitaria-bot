@@ -871,6 +871,47 @@ app.delete('/api/fiado/:id', async (req, res) => {
   }
 });
 
+// === LOGIN ===
+app.post('/api/login', async (req, res) => {
+  try {
+    const { usuario, senha } = req.body;
+
+    // Verifica na tabela de funcionários
+    const result = await pool.query(`
+      SELECT id, nome, email, senha_hash, cargo, ativo 
+      FROM funcionarios 
+      WHERE (usuario = $1 OR email = $1) AND ativo = TRUE
+      LIMIT 1
+    `, [usuario]);
+
+    if (result.rows.length === 0) {
+      return res.status(401).json({ erro: 'Usuário não encontrado ou inativo' });
+    }
+
+    const user = result.rows[0];
+
+    // Senha simples (para sistema interno) — depois trocar por bcrypt
+    if (senha === user.senha_hash) {
+      res.json({
+        ok: true,
+        id: user.id,
+        nome: user.nome,
+        perfil: user.cargo || 'comum'
+      });
+    } else {
+      res.status(401).json({ erro: 'Senha incorreta' });
+    }
+  } catch (e) {
+    console.error('Login:', e);
+    res.status(500).json({ erro: 'Erro no servidor' });
+  }
+});
+
+// Proteção — bloquear acesso direto sem login
+app.get('/index.html', (req, res) => {
+  res.redirect('/login.html');
+});
+
 // ===== INICIAR SERVIDOR =====
 app.listen(CONFIG.PORT, () => {
   console.log(`🚀 SERVIDOR ONLINE — Porta ${CONFIG.PORT}`);
