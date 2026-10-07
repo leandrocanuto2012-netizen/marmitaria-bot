@@ -1,1 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clientes — Marmitária</title>
+  <style>
+    * {margin:0; padding:0; font-family: system-ui; box-sizing: border-box;}
+    body {background: #fef9f3; padding: 20px; max-width: 1000px; margin: 0 auto;}
+    h1 {color: #d35400; margin-bottom: 20px; display: flex; align-items: center; gap: 10px;}
+    .voltar {display: inline-block; margin-bottom: 15px; color: #d35400; text-decoration: none;}
+    .aba {display: flex; gap: 8px; margin-bottom: 20px;}
+    .aba-btn {padding: 10px 18px; border: none; background: #ddd; border-radius: 8px; cursor: pointer; font-weight: bold;}
+    .aba-btn.ativo {background: #d35400; color: white;}
+    .card {background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); margin-bottom: 20px;}
+    input, button, textarea {padding: 12px; margin: 6px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; width: 100%;}
+    button {background: #27ae60; color: white; border: none; font-weight: bold; cursor: pointer;}
+    button.vermelho {background: #e74c3c;}
+    button.azul {background: #3498db;}
+    button.cinza {background: #95a5a6;}
+    .grid {display: grid; grid-template-columns: 1fr 1fr; gap: 10px;}
+    .busca {display: flex; gap: 10px; margin-bottom: 20px;}
+    .busca input {flex: 1; margin: 0;}
+    .cliente-item {padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;}
+    .cliente-item:hover {background: #faf7f2;}
+    .cliente-dados {flex: 1; min-width: 250px;}
+    .cliente-nome {font-weight: bold; font-size: 1.05em;}
+    .cliente-contato {color: #666; font-size: 0.9em;}
+    .cliente-saldo {font-weight: bold; color: #e74c3c;}
+    .cliente-saldo.positivo {color: #27ae60;}
+    .acoes {display: flex; gap: 6px; flex-wrap: wrap;}
+    .acoes button {padding: 6px 10px; font-size: 13px; width: auto;}
+    .oculto {display: none !important;}
+    .aviso {padding: 10px 15px; border-radius: 8px; margin: 10px 0; display: none;}
+    .aviso.sucesso {background: #e8f5e9; border-left: 4px solid #27ae60; color: #1b5e20;}
+    .aviso.erro {background: #ffebee; border-left: 4px solid #e74c3c; color: #b71c1c;}
+    .limite {font-size: 0.85em; color: #888; margin-top: 4px;}
+    .sem-resultado {text-align: center; padding: 30px; color: #888;}
+  </style>
+</head>
+<body>
+  <a href="../index.html" class="voltar">← Início</a>
+  <h1>👥 Clientes</h1>
 
+  <div class="aba">
+    <button class="aba-btn ativo" onclick="mudarAba('lista')">📋 Lista</button>
+    <button class="aba-btn" onclick="mudarAba('cadastro')">➕ Novo</button>
+  </div>
+
+  <div id="abaLista">
+    <div class="busca">
+      <input type="text" id="busca" placeholder="Buscar por nome ou telefone..." oninput="filtrar()">
+      <button class="azul" onclick="carregar()">🔄</button>
+    </div>
+    <div id="listaClientes"></div>
+  </div>
+
+  <div id="abaCadastro" class="oculto">
+    <div class="card">
+      <h2 id="tituloForm">➕ Novo Cliente</h2>
+      <form id="formCliente">
+        <input type="hidden" id="clienteId">
+        <input type="text" id="nome" placeholder="Nome Completo" required>
+        <div class="grid">
+          <input type="text" id="telefone" placeholder="Telefone (41) 99999-9999">
+          <input type="email" id="email" placeholder="E-mail">
+        </div>
+        <input type="text" id="endereco" placeholder="Endereço">
+        <div class="grid">
+          <input type="text" id="bairro" placeholder="Bairro">
+          <input type="text" id="cidade" placeholder="Cidade">
+        </div>
+        <div class="grid">
+          <input type="number" id="limiteFiado" placeholder="Limite de Fiado R$" step="0.01" value="500.00">
+          <input type="text" id="observacao" placeholder="Observação">
+        </div>
+        <div class="aviso" id="avisoForm"></div>
+        <button type="submit">💾 Salvar</button>
+        <button type="button" class="cinza" onclick="cancelar()">Cancelar</button>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let todosClientes = [];
+
+    function mudarAba(nome) {
+      document.querySelectorAll('.aba-btn').forEach(b => b.classList.remove('ativo'));
+      event.target.classList.add('ativo');
+      document.getElementById('abaLista').classList.toggle('oculto', nome !== 'lista');
+      document.getElementById('abaCadastro').classList.toggle('oculto', nome !== 'cadastro');
+      if (nome === 'cadastro') limparFormulario();
+    }
+
+    async function carregar() {
+      const res = await fetch('/api/clientes');
+      todosClientes = await res.json();
+      filtrar();
+    }
+
+    function filtrar() {
+      const termo = document.getElementById('busca').value.toLowerCase().trim();
+      const lista = termo 
+        ? todosClientes.filter(c => 
+            (c.nome && c.nome.toLowerCase().includes(termo)) || 
+            (c.telefone && c.telefone.includes(termo)))
+        : todosClientes;
+      
+      const container = document.getElementById('listaClientes');
+      if (!lista || lista.length === 0) {
+        container.innerHTML = '<p class="sem-resultado">Nenhum cliente encontrado</p>';
+        return;
+      }
+
+      container.innerHTML = lista.map(c => `
+        <div class="cliente-item">
+          <div class="cliente-dados">
+            <div class="cliente-nome">${c.nome || 'Sem nome'} ${c.ativo === false ? '<span style="color:#e74c3c; font-size:0.8em;">(INATIVO)</span>' : ''}</div>
+            <div class="cliente-contato">${c.telefone || '📞 Sem telefone'} · ${c.cidade || ''}</div>
+            <div class="limite">
+              Limite: R$ ${parseFloat(c.limite_fiado || 0).toFixed(2)} | 
+              Saldo: <span class="cliente-saldo ${parseFloat(c.saldo_fiado || 0) <= 0 ? 'positivo' : ''}">
+                R$ ${parseFloat(c.saldo_fiado || 0).toFixed(2)}
+              </span>
+            </div>
+          </div>
+          <div class="acoes">
+            <button class="azul" onclick="editar(${c.id})">✏️ Editar</button>
+            <button onclick="irFiado(${c.id}, '${(c.nome || '').replace(/'/g, "\\'")}')">💰 Fiado</button>
+            <button class="vermelho" onclick="excluir(${c.id}, '${(c.nome || '').replace(/'/g, "\\'")}')">🗑️</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function editar(id) {
+      const c = todosClientes.find(x => x.id === id);
+      if (!c) return;
+      
+      document.getElementById('clienteId').value = c.id;
+      document.getElementById('nome').value = c.nome || '';
+      document.getElementById('telefone').value = c.telefone || '';
+      document.getElementById('email').value = c.email || '';
+      document.getElementById('endereco').value = c.endereco || '';
+      document.getElementById('bairro').value = c.bairro || '';
+      document.getElementById('cidade').value = c.cidade || '';
+      document.getElementById('limiteFiado').value = parseFloat(c.limite_fiado || 500);
+      document.getElementById('observacao').value = c.observacao || '';
+      document.getElementById('tituloForm').innerText = '✏️ Editar Cliente';
+      
+      mudarAba('cadastro');
+    }
+
+    function limparFormulario() {
+      document.getElementById('clienteId').value = '';
+      document.getElementById('formCliente').reset();
+      document.getElementById('limiteFiado').value = '500.00';
+      document.getElementById('tituloForm').innerText = '➕ Novo Cliente';
+      document.getElementById('avisoForm').style.display = 'none';
+    }
+
+    function cancelar() {
+      limparFormulario();
+      mudarAba('lista');
+    }
+
+    function irFiado(id, nome) {
+      window.location.href = `fiado.html?cliente_id=${id}&nome=${encodeURIComponent(nome)}`;
+    }
+
+    async function excluir(id, nome) {
+      if (!confirm(`Excluir o cliente "${nome}"?\nTodos os lançamentos de fiado também serão removidos!`)) return;
+      
+      await fetch(`/api/clientes/${id}`, {method: 'DELETE'});
+      carregar();
+      mostrarAviso('Cliente excluído com sucesso!', 'sucesso');
+    }
+
+    function mostrarAviso(texto, tipo) {
+      const av = document.getElementById('avisoForm');
+      av.className = `aviso ${tipo}`;
+      av.textContent = texto;
+      av.style.display = 'block';
+      setTimeout(() => av.style.display = 'none', 4000);
+    }
+
+    document.getElementById('formCliente').addEventListener('submit', async e => {
+      e.preventDefault();
+      
+      const id = document.getElementById('clienteId').value;
+      const dados = {
+        nome: document.getElementById('nome').value.trim(),
+        telefone: document.getElementById('telefone').value.trim(),
+        email: document.getElementById('email').value.trim(),
+        endereco: document.getElementById('endereco').value.trim(),
+        bairro: document.getElementById('bairro').value.trim(),
+        cidade: document.getElementById('cidade').value.trim(),
+        limite_fiado: parseFloat(document.getElementById('limiteFiado').value) || 500,
+        observacao: document.getElementById('observacao').value.trim()
+      };
+
+      const res = await fetch('/api/clientes' + (id ? `/${id}` : ''), {
+        method: id ? 'PUT' : 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(dados)
+      });
+
+      if (res.ok) {
+        mostrarAviso(id ? 'Cliente atualizado!' : 'Cliente cadastrado!', 'sucesso');
+        limparFormulario();
+        carregar();
+        mudarAba('lista');
+      } else {
+        mostrarAviso('Erro ao salvar!', 'erro');
+      }
+    });
+
+    carregar();
+  </script>
+</body>
+</html>
