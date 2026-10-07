@@ -1,364 +1,241 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Caixa / PDV — Marmitária</title>
   <style>
     * {margin:0; padding:0; font-family: system-ui; box-sizing: border-box;}
-    body {background: #f5f5f5; padding: 20px; max-width: 650px; margin: 0 auto;}
-    h1 {color: #2d3436; margin-bottom: 20px;}
-    .aba {display: flex; gap: 8px; margin-bottom: 20px;}
-    .aba-btn {flex:1; padding: 10px; border: none; background: #ddd; border-radius: 8px; cursor: pointer; font-weight: bold;}
-    .aba-btn.ativo {background: #27ae60; color: white;}
-    .caixa-aberto {background: #d4edda; border-left: 5px solid #27ae60; padding: 15px; border-radius: 10px; margin-bottom: 20px;}
-    .caixa-fechado {background: #f8d7da; border-left: 5px solid #dc3545; padding: 15px; border-radius: 10px; margin-bottom: 20px;}
-    .card {background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.08);}
-    input, button, select, textarea {padding: 12px; margin: 6px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; width: 100%;}
+    body {background: #fef9f3; padding: 20px; max-width: 900px; margin: 0 auto;}
+    .voltar {display: inline-block; margin-bottom: 15px; color: #d35400; text-decoration: none;}
+    h1 {color: #d35400; margin-bottom: 20px;}
+    .card {background: white; padding: 25px; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.06); margin-bottom: 20px;}
+    .card.aberto {border-top: 4px solid #27ae60;}
+    .card.fechado {border-top: 4px solid #95a5a6;}
+    .card.aviso {border-top: 4px solid #f39c12;}
+    .linha {display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee;}
+    .linha.total {font-weight: bold; font-size: 1.2em; border-bottom: 2px solid #ddd; padding: 15px 0;}
+    .valor-verde {color: #27ae60;}
+    .valor-vermelho {color: #e74c3c;}
+    input, button, select, textarea {padding: 12px; margin: 6px 0; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; width: 100%;}
     button {background: #27ae60; color: white; border: none; font-weight: bold; cursor: pointer;}
     button.vermelho {background: #e74c3c;}
     button.azul {background: #3498db;}
-    button.cinza {background: #95a5a6;}
-    .resumo {display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #eee;}
-    .resumo.total {font-size: 1.3em; font-weight: bold; color: #27ae60; border-bottom: 2px solid #ddd; padding: 15px 0;}
-    .lista-item {padding: 10px 0; border-bottom: 1px dashed #ddd; display: flex; justify-content: space-between; align-items: center;}
-    .valor {font-weight: bold; color: #27ae60;}
-    .cupom {background: #fff; border: 2px dashed #999; padding: 20px; margin-top: 20px; font-family: 'Courier New', monospace; font-size: 14px; line-height: 1.6;}
-    .cupom .cabecalho {text-align: center; margin-bottom: 15px;}
-    .cupom .linha {border-bottom: 1px dashed #ccc; padding: 4px 0;}
-    .cupom .total {font-weight: bold; font-size: 16px; text-align: right; margin-top: 10px;}
-    .cupom .rodape {text-align: center; margin-top: 15px; font-size: 12px; color: #666;}
-    .voltar {display: inline-block; margin-bottom: 15px; color: #d35400; text-decoration: none;}
+    button.largo {padding: 14px; font-size: 1.1em; margin-top: 15px;}
+    .grid {display: grid; grid-template-columns: 1fr 1fr; gap: 10px;}
+    .mov-item {padding: 10px 0; border-bottom: 1px dashed #eee;}
+    .mov-entrada {color: #27ae60;}
+    .mov-saida {color: #e74c3c;}
+    .aviso {padding: 12px 16px; border-radius: 8px; margin: 10px 0; display: none;}
+    .aviso.sucesso {background: #e8f5e9; border-left: 4px solid #27ae60; color: #1b5e20;}
+    .aviso.erro {background: #ffebee; border-left: 4px solid #e74c3c; color: #b71c1c;}
     .oculto {display: none !important;}
-    .item-venda-manual {display: flex; gap: 8px; align-items: center; margin: 8px 0; padding: 8px; background: #f9f9f9; border-radius: 6px;}
-    .item-venda-manual input {margin: 0; padding: 8px;}
-    @media print {
-      body * {visibility: hidden;}
-      .cupom, .cupom * {visibility: visible;}
-      .cupom {position: absolute; left: 0; top: 0; width: 80mm; margin: 0; border: none;}
-      .imprimir {display: none;}
-    }
+    .divergencia {padding: 12px; border-radius: 8px; margin: 10px 0;}
+    .divergencia.sim {background: #fff3cd; border-left: 4px solid #f57c00;}
+    .divergencia.nao {background: #e8f5e9; border-left: 4px solid #27ae60;}
   </style>
 </head>
 <body>
-  <a href="../index.html" class="voltar">← Página Inicial</a>
+  <a href="../index.html" class="voltar">← Início</a>
   <h1>💰 Caixa / PDV</h1>
 
-  <div id="statusCaixa"></div>
-
-  <!-- ABRIR CAIXA -->
-  <form id="formAbrir">
-    <h3>Abrir Caixa</h3>
-    <input type="text" id="operador" placeholder="Nome do operador" required>
-    <input type="number" id="saldoInicial" placeholder="Saldo inicial R$" step="0.01" value="0">
-    <button type="submit">🔓 Abrir Caixa</button>
-  </form>
-
-  <!-- PAINEL ABERTO -->
-  <div id="painelAberto" class="oculto">
-    <!-- ABAS -->
-    <div class="aba">
-      <button class="aba-btn ativo" onclick="mudarAba('vendas')">📋 Vendas</button>
-      <button class="aba-btn" onclick="mudarAba('manual')">✍️ Venda Manual</button>
-    </div>
-
-    <!-- ABA VENDAS (automáticas) -->
-    <div id="abaVendas">
-      <button class="azul" style="width:auto; margin:10px 0;" onclick="carregarVendas()">🔄 Atualizar</button>
-      <div id="listaVendas"></div>
-    </div>
-
-    <!-- ABA VENDA MANUAL -->
-    <div id="abaManual" class="oculto">
-      <div class="card">
-        <h3>✍️ Lançar Venda Manual</h3>
-        <input type="text" id="cliNome" placeholder="Nome do Cliente (opcional)">
-        <input type="text" id="cliTelefone" placeholder="Telefone (opcional)">
-        <select id="tipoVenda">
-          <option value="balcao">Retirada no Balcão</option>
-          <option value="entrega">Entrega</option>
-        </select>
-        
-        <div id="itensManual">
-          <div class="item-venda-manual">
-            <input type="text" placeholder="Produto" class="item-nome" style="flex:2;">
-            <input type="number" placeholder="Qtd" class="item-qtd" style="width:70px;">
-            <input type="number" placeholder="R$" step="0.01" class="item-valor" style="width:100px;">
-            <button class="vermelho" onclick="removerItem(this)" style="width:32px; padding:6px;">−</button>
-          </div>
-        </div>
-        <button class="azul" onclick="adicionarItem()">+ Adicionar Item</button>
-        
-        <textarea id="obs" placeholder="Observações (opcional)"></textarea>
-        <div style="font-size:1.5em; font-weight:bold; color:#27ae60; text-align:right; margin:10px 0;">
-          TOTAL: R$ <span id="totalManual">0,00</span>
-        </div>
-        <button onclick="registrarVendaManual()">✅ Registrar Venda</button>
-      </div>
-    </div>
-
-    <!-- RESUMO -->
-    <div style="margin-top:30px;">
-      <h3>📊 Resumo do Caixa</h3>
-      <div class="resumo"><strong>Saldo Inicial:</strong> <span id="saldoIni">R$ 0,00</span></div>
-      <div class="resumo"><strong>Total de Vendas:</strong> <span id="totalVendas">R$ 0,00</span></div>
-      <div class="resumo"><strong>Qtd. Pedidos:</strong> <span id="qtdPedidos">0</span></div>
-      <div class="resumo total"><strong>Saldo Atual:</strong> <span id="saldoAtual">R$ 0,00</span></div>
-    </div>
-
-    <form id="formFechar" style="margin-top:30px;">
-      <button type="submit" class="vermelho">🔒 Fechar Caixa</button>
+  <!-- SEM CAIXA ABERTO -->
+  <div id="semCaixa" class="card aviso">
+    <h2>🔒 Nenhum caixa aberto</h2>
+    <form id="formAbrir">
+      <input type="text" id="operador" placeholder="Seu nome" required>
+      <input type="number" id="valorInicial" step="0.01" placeholder="Valor de abertura R$" value="0.00">
+      <button type="submit" class="largo">🔓 Abrir Caixa</button>
     </form>
   </div>
 
-  <!-- CUPOM -->
-  <div id="areaCupom" style="display:none;">
-    <div class="cupom" id="cupomFiscal">
-      <div class="cabecalho">
-        <strong>MARMITÁRIA — SABOR CASEIRO</strong><br>
-        Rua Exemplo, 123 — Curitiba/PR<br>
-        CNPJ: 00.000.000/0001-00<br>
-        --------------------------------
-      </div>
-      <div class="linha">
-        <strong>DATA/HORA:</strong> <span id="cupomData"></span><br>
-        <strong>PEDIDO Nº:</strong> <span id="cupomPedido"></span>
-      </div>
-      <div id="cupomItens"></div>
-      <div class="total">TOTAL: R$ <span id="cupomTotal"></span></div>
-      <div class="rodape">
-        --------------------------------<br>
-        Obrigado pela preferência! Volte sempre!<br>
-        📞 (41) 99999-9999
-      </div>
+  <!-- CAIXA ABERTO -->
+  <div id="caixaAberto" class="card aberto oculto">
+    <h2>✅ Caixa Aberto</h2>
+    <div class="linha">
+      <span>Operador</span>
+      <span id="nomeOperador">-</span>
     </div>
-    <button class="imprimir" onclick="window.print()">🖨️ Imprimir Cupom</button>
-    <button class="cinza" onclick="fecharCupom()">Fechar</button>
+    <div class="linha">
+      <span>Aberto em</span>
+      <span id="dataAbertura">-</span>
+    </div>
+    <div class="linha">
+      <span>Valor Inicial</span>
+      <span id="valInicial">R$ 0,00</span>
+    </div>
+    <div class="linha">
+      <span>Entradas</span>
+      <span id="valEntradas" class="valor-verde">+ R$ 0,00</span>
+    </div>
+    <div class="linha">
+      <span>Saídas</span>
+      <span id="valSaidas" class="valor-vermelho">- R$ 0,00</span>
+    </div>
+    <div class="linha total">
+      <span>Saldo Esperado</span>
+      <span id="valEsperado">R$ 0,00</span>
+    </div>
+
+    <h3 style="margin: 25px 0 10px;">➕ Lançar Movimento</h3>
+    <form id="formMovimento">
+      <input type="hidden" id="caixaId">
+      <select id="tipo">
+        <option value="entrada">💵 Entrada (Recebimento)</option>
+        <option value="saida">💸 Saída (Despesa/Retirada)</option>
+      </select>
+      <input type="number" id="valorMov" step="0.01" placeholder="Valor R$" required>
+      <input type="text" id="descricao" placeholder="Descrição" required>
+      <select id="pagamento">
+        <option value="dinheiro">💵 Dinheiro</option>
+        <option value="pix">⚡ PIX</option>
+        <option value="cartao">💳 Cartão</option>
+        <option value="outro">📦 Outro</option>
+      </select>
+      <button type="submit">✅ Registrar</button>
+    </form>
+
+    <h3 style="margin: 25px 0 10px;">📋 Últimos Movimentos</h3>
+    <div id="listaMov"></div>
+
+    <h3 style="margin: 25px 0 10px;">🔴 Fechar Caixa</h3>
+    <form id="formFechar">
+      <input type="hidden" id="caixaIdFechar">
+      <input type="number" id="valorConferido" step="0.01" placeholder="Valor conferido na gaveta R$" required>
+      <textarea id="observacao" placeholder="Observação (opcional)"></textarea>
+      <div id="avisoDivergencia" class="divergencia oculto"></div>
+      <button type="submit" class="vermelho largo">🔴 FECHAR CAIXA</button>
+    </form>
   </div>
+
+  <!-- CAIXA FECHADO -->
+  <div id="caixaFechado" class="card fechado oculto">
+    <h2>🔒 Caixa Fechado</h2>
+    <div id="dadosFechamento"></div>
+    <button class="azul" style="margin-top: 15px;" onclick="carregar()">🔄 Atualizar / Outro dia</button>
+  </div>
+
+  <div class="aviso" id="avisoGeral"></div>
 
   <script>
     let caixaAtual = null;
-    let vendasHoje = [];
 
-    // === ABAS ===
-    function mudarAba(nome) {
-      document.querySelectorAll('.aba-btn').forEach(b => b.classList.remove('ativo'));
-      event.target.classList.add('ativo');
-      document.getElementById('abaVendas').classList.toggle('oculto', nome !== 'vendas');
-      document.getElementById('abaManual').classList.toggle('oculto', nome !== 'manual');
-      if (nome === 'manual') calcularTotalManual();
-    }
+    async function carregar() {
+      const res = await fetch('/api/caixa/atual');
+      const dados = await res.json();
 
-    // === VENDA MANUAL ===
-    function adicionarItem() {
-      const container = document.getElementById('itensManual');
-      const div = document.createElement('div');
-      div.className = 'item-venda-manual';
-      div.innerHTML = `
-        <input type="text" placeholder="Produto" class="item-nome" style="flex:2;">
-        <input type="number" placeholder="Qtd" class="item-qtd" style="width:70px;">
-        <input type="number" placeholder="R$" step="0.01" class="item-valor" style="width:100px;">
-        <button class="vermelho" onclick="removerItem(this)" style="width:32px; padding:6px;">−</button>
-      `;
-      container.appendChild(div);
-      div.querySelectorAll('input').forEach(i => i.addEventListener('input', calcularTotalManual));
-    }
+      document.getElementById('semCaixa').classList.add('oculto');
+      document.getElementById('caixaAberto').classList.add('oculto');
+      document.getElementById('caixaFechado').classList.add('oculto');
 
-    function removerItem(btn) {
-      const itens = document.querySelectorAll('.item-venda-manual');
-      if (itens.length > 1) btn.parentElement.remove();
-      calcularTotalManual();
-    }
-
-    function calcularTotalManual() {
-      let total = 0;
-      document.querySelectorAll('.item-venda-manual').forEach(linha => {
-        const qtd = parseFloat(linha.querySelector('.item-qtd').value) || 0;
-        const val = parseFloat(linha.querySelector('.item-valor').value) || 0;
-        total += qtd * val;
-      });
-      document.getElementById('totalManual').innerText = total.toFixed(2);
-    }
-
-    async function registrarVendaManual() {
-      const itens = [];
-      let valorTotal = 0;
-      
-      document.querySelectorAll('.item-venda-manual').forEach(linha => {
-        const nome = linha.querySelector('.item-nome').value.trim();
-        const qtd = parseFloat(linha.querySelector('.item-qtd').value) || 0;
-        const val = parseFloat(linha.querySelector('.item-valor').value) || 0;
-        if (nome && qtd > 0 && val > 0) {
-          itens.push({nome, quantidade: qtd, preco_unitario: val});
-          valorTotal += qtd * val;
-        }
-      });
-
-      if (itens.length === 0) return alert('Preencha pelo menos um item!');
-
-      const dados = {
-        nome_cliente: document.getElementById('cliNome').value.trim() || 'Venda Balcão',
-        telefone_cliente: document.getElementById('cliTelefone').value.trim(),
-        tipo: document.getElementById('tipoVenda').value,
-        observacao: document.getElementById('obs').value.trim() || 'Lançamento Manual',
-        valor_total: valorTotal.toFixed(2),
-        itens: itens,
-        status: 'entregue'
-      };
-
-      if (!confirm(`Confirmar venda de R$ ${valorTotal.toFixed(2)}?`)) return;
-
-      const res = await fetch('/api/pedidos/manual', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(dados)
-      });
-
-      const pedido = await res.json();
-      alert('✅ Venda registrada!');
-      
-      // Limpa formulário
-      document.getElementById('cliNome').value = '';
-      document.getElementById('cliTelefone').value = '';
-      document.getElementById('obs').value = '';
-      document.getElementById('itensManual').innerHTML = `
-        <div class="item-venda-manual">
-          <input type="text" placeholder="Produto" class="item-nome" style="flex:2;">
-          <input type="number" placeholder="Qtd" class="item-qtd" style="width:70px;">
-          <input type="number" placeholder="R$" step="0.01" class="item-valor" style="width:100px;">
-          <button class="vermelho" onclick="removerItem(this)" style="width:32px; padding:6px;">−</button>
-        </div>
-      `;
-      calcularTotalManual();
-      
-      carregarVendas();
-      gerarCupom(pedido.id, pedido);
-    }
-
-    // === CAIXA ===
-    async function verificarCaixa() {
-      try {
-        const res = await fetch('/api/resumo');
-        const dados = await res.json();
-        caixaAtual = dados.caixaAberto;
-        
-        if (caixaAtual) {
-          document.getElementById('statusCaixa').innerHTML = `
-            <div class="caixa-aberto">✅ CAIXA ABERTO — Operador: ${caixaAtual.operador}</div>
-          `;
-          document.getElementById('formAbrir').style.display = 'none';
-          document.getElementById('painelAberto').classList.remove('oculto');
-          carregarVendas();
-        } else {
-          document.getElementById('statusCaixa').innerHTML = `<div class="caixa-fechado">🔴 CAIXA FECHADO</div>`;
-          document.getElementById('formAbrir').style.display = 'block';
-          document.getElementById('painelAberto').classList.add('oculto');
-        }
-      } catch (e) {
-        document.getElementById('statusCaixa').innerHTML = `<p style="color:red;">Erro: ${e.message}</p>`;
+      if (!dados.aberto) {
+        document.getElementById('semCaixa').classList.remove('oculto');
+        return;
       }
-    }
 
-    async function carregarVendas() {
-      const res = await fetch('/api/pedidos');
-      const pedidos = await res.json();
-      const hoje = new Date().toISOString().split('T')[0];
-      
-      vendasHoje = pedidos.filter(p => p.created_at.startsWith(hoje) && p.status === 'entregue');
+      caixaAtual = dados.caixa;
+      document.getElementById('caixaAberto').classList.remove('oculto');
+      document.getElementById('caixaId').value = caixaAtual.id;
+      document.getElementById('caixaIdFechar').value = caixaAtual.id;
 
-      const lista = document.getElementById('listaVendas');
-      if (vendasHoje.length === 0) {
-        lista.innerHTML = '<p style="color:#888; padding:15px;">Nenhuma venda hoje</p>';
+      // Preencher dados
+      document.getElementById('nomeOperador').textContent = caixaAtual.operador_nome;
+      document.getElementById('dataAbertura').textContent = new Date(caixaAtual.data_abertura).toLocaleString('pt-BR');
+      document.getElementById('valInicial').textContent = `R$ ${parseFloat(caixaAtual.valor_inicial).toFixed(2)}`;
+
+      // Calcular
+      let entradas = 0, saidas = 0;
+      (caixaAtual.movimentos || []).forEach(m => {
+        if (m.tipo === 'entrada') entradas += parseFloat(m.valor);
+        if (m.tipo === 'saida') saidas += parseFloat(m.valor);
+      });
+
+      document.getElementById('valEntradas').textContent = `+ R$ ${entradas.toFixed(2)}`;
+      document.getElementById('valSaidas').textContent = `- R$ ${saidas.toFixed(2)}`;
+      document.getElementById('valEsperado').textContent = `R$ ${parseFloat(caixaAtual.valor_esperado).toFixed(2)}`;
+
+      // Lista de movimentos
+      const lista = document.getElementById('listaMov');
+      if (!caixaAtual.movimentos.length) {
+        lista.innerHTML = '<p style="color:#888; padding:10px;">Nenhum lançamento ainda</p>';
       } else {
-        lista.innerHTML = vendasHoje.map(p => `
-          <div class="lista-item">
-            <div>
-              <strong>#${p.id} — ${p.nome_cliente || 'Cliente'}</strong><br>
-              <small>🕒 ${new Date(p.created_at).toLocaleTimeString('pt-BR')} | ${p.tipo === 'balcao' ? 'Balcão' : 'Entrega'}</small>
-            </div>
-            <div style="text-align:right;">
-              <div class="valor">R$ ${parseFloat(p.valor_total).toFixed(2)}</div>
-              <button style="padding:4px 8px; font-size:12px; margin-top:4px;" onclick="gerarCupom(${p.id})">🧾 Cupom</button>
-            </div>
+        lista.innerHTML = caixaAtual.movimentos.map(m => `
+          <div class="mov-item">
+            <span class="mov-${m.tipo}">${m.tipo === 'entrada' ? '+' : '-'} R$ ${parseFloat(m.valor).toFixed(2)}</span>
+            — ${m.descricao || 'Sem descrição'}
+            <span style="color:#888; font-size:0.85em; float:right;">${new Date(m.created_at).toLocaleTimeString('pt-BR')}</span>
           </div>
         `).join('');
       }
-
-      const total = vendasHoje.reduce((s, p) => s + parseFloat(p.valor_total || 0), 0);
-      const saldoInicial = caixaAtual ? parseFloat(caixaAtual.saldo_inicial || 0) : 0;
-      
-      document.getElementById('saldoIni').innerText = `R$ ${saldoInicial.toFixed(2)}`;
-      document.getElementById('totalVendas').innerText = `R$ ${total.toFixed(2)}`;
-      document.getElementById('qtdPedidos').innerText = vendasHoje.length;
-      document.getElementById('saldoAtual').innerText = `R$ ${(saldoInicial + total).toFixed(2)}`;
     }
 
-    async function gerarCupom(id, pedidoDados = null) {
-      const pedido = pedidoDados || vendasHoje.find(p => p.id === id);
-      if (!pedido) return;
-
-      document.getElementById('cupomData').innerText = new Date(pedido.created_at).toLocaleString('pt-BR');
-      document.getElementById('cupomPedido').innerText = pedido.id;
-      document.getElementById('cupomTotal').innerText = parseFloat(pedido.valor_total).toFixed(2);
-      
-      let itensHtml = '';
-      try {
-        const resItens = await fetch(`/api/pedidos/${id}/itens`);
-        const itens = await resItens.json();
-        if (itens.length > 0) {
-          itensHtml = itens.map(i => `
-            <div class="linha">${i.quantidade}x ${i.nome_produto} — R$ ${(parseFloat(i.preco_unitario) * i.quantidade).toFixed(2)}</div>
-          `).join('');
-        } else {
-          itensHtml = `<div class="linha">Venda — R$ ${parseFloat(pedido.valor_total).toFixed(2)}</div>`;
-        }
-      } catch {
-        itensHtml = `<div class="linha">Venda — R$ ${parseFloat(pedido.valor_total).toFixed(2)}</div>`;
-      }
-      
-      document.getElementById('cupomItens').innerHTML = itensHtml;
-      document.getElementById('areaCupom').style.display = 'block';
-      window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'});
+    function mostrarAviso(texto, tipo) {
+      const av = document.getElementById('avisoGeral');
+      av.className = `aviso ${tipo}`;
+      av.textContent = texto;
+      av.style.display = 'block';
+      setTimeout(() => av.style.display = 'none', 5000);
     }
 
-    function fecharCupom() {
-      document.getElementById('areaCupom').style.display = 'none';
-    }
-
-    // ABRIR CAIXA
+    // Abrir caixa
     document.getElementById('formAbrir').addEventListener('submit', async e => {
       e.preventDefault();
-      await fetch('/api/caixa/abrir', {
+      const res = await fetch('/api/caixa/abrir', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
-          operador: document.getElementById('operador').value,
-          saldoInicial: parseFloat(document.getElementById('saldoInicial').value) || 0
+          operador_nome: document.getElementById('operador').value.trim(),
+          valor_inicial: document.getElementById('valorInicial').value
         })
       });
-      e.target.reset();
-      verificarCaixa();
-      alert('✅ Caixa aberto!');
-    });
-
-    // FECHAR CAIXA
-    document.getElementById('formFechar').addEventListener('submit', async e => {
-      e.preventDefault();
-      const total = vendasHoje.reduce((s, p) => s + parseFloat(p.valor_total || 0), 0);
-      if (!confirm(`Fechar caixa?\nInicial: R$ ${(caixaAtual?.saldo_inicial||0).toFixed(2)}\nVendas: R$ ${total.toFixed(2)}\nFinal: R$ ${((caixaAtual?.saldo_inicial||0)+total).toFixed(2)}`)) return;
-      await fetch('/api/caixa/fechar', {method: 'POST'});
-      verificarCaixa();
-    });
-
-    // Calcula total manual ao digitar
-    document.addEventListener('input', e => {
-      if (e.target.classList.contains('item-qtd') || e.target.classList.contains('item-valor')) {
-        calcularTotalManual();
+      const d = await res.json();
+      if (d.ok) {
+        mostrarAviso('✅ Caixa aberto!', 'sucesso');
+        carregar();
+      } else {
+        mostrarAviso(d.erro || 'Erro', 'erro');
       }
     });
 
-    verificarCaixa();
-    setInterval(carregarVendas, 30000);
-  </script>
-</body>
-</html>
+    // Lançar movimento
+    document.getElementById('formMovimento').addEventListener('submit', async e => {
+      e.preventDefault();
+      const res = await fetch('/api/caixa/movimento', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          caixa_id: caixaAtual.id,
+          tipo: document.getElementById('tipo').value,
+          valor: document.getElementById('valorMov').value,
+          descricao: document.getElementById('descricao').value.trim(),
+          forma_pagamento: document.getElementById('pagamento').value,
+          usuario: localStorage.getItem('nomeUsuario') || 'Sistema'
+        })
+      });
+      const d = await res.json();
+      if (d.ok) {
+        document.getElementById('valorMov').value = '';
+        document.getElementById('descricao').value = '';
+        mostrarAviso('✅ Registrado!', 'sucesso');
+        carregar();
+      } else {
+        mostrarAviso(d.erro, 'erro');
+      }
+    });
+
+    // Verificar divergência ao digitar valor conferido
+    document.getElementById('valorConferido').addEventListener('input', () => {
+      const esperado = parseFloat(caixaAtual.valor_esperado);
+      const conferido = parseFloat(document.getElementById('valorConferido').value) || 0;
+      const dif = conferido - esperado;
+      const av = document.getElementById('avisoDivergencia');
+
+      if (conferido === 0) {
+        av.classList.add('oculto');
+        return;
+      }
+
+      av.classList.remove('oculto', 'sim', 'nao');
+      if (dif === 0) {
+        av.classList.add('nao');
+        av.innerHTML = '✅
