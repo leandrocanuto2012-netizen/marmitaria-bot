@@ -13,68 +13,53 @@
     * {margin:0; padding:0; font-family: system-ui; box-sizing: border-box;}
     body {background: #fef9f3; padding: 20px; max-width: 1000px; margin: 0 auto;}
     .voltar {display: inline-block; margin-bottom: 15px; color: #d35400; text-decoration: none;}
-    h1 {color: #d35400; margin-bottom: 20px; text-align: center;}
-    .categoria {margin-bottom: 30px;}
-    .categoria-nome {font-size: 1.3em; font-weight: bold; color: #d35400; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #f0e6d8;}
-    .grid {display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px;}
-    .prato {background: white; border-radius: 12px; padding: 18px; box-shadow: 0 3px 8px rgba(0,0,0,0.06);}
-    .prato-nome {font-weight: bold; font-size: 1.1em; margin-bottom: 8px;}
-    .prato-desc {color: #666; font-size: 0.9em; margin-bottom: 10px; line-height: 1.4;}
-    .prato-valor {font-size: 1.2em; font-weight: bold; color: #27ae60;}
-    .indisponivel {opacity: 0.6;}
-    .indisponivel .prato-valor {color: #e74c3c; text-decoration: line-through;}
+    h1 {color: #d35400; margin-bottom: 30px; text-align: center; font-size: 2em;}
+    .categoria {margin-bottom: 35px;}
+    .categoria-nome {font-size: 1.4em; font-weight: bold; color: #d35400; margin-bottom: 15px; padding-bottom: 8px; border-bottom: 2px solid #f0e6d8;}
+    .grid {display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px;}
+    .prato {background: white; border-radius: 14px; padding: 20px; box-shadow: 0 3px 10px rgba(0,0,0,0.06); transition: transform 0.2s;}
+    .prato:hover {transform: translateY(-3px);}
+    .prato-nome {font-weight: bold; font-size: 1.1em; margin-bottom: 8px; color: #2d3436;}
+    .prato-desc {color: #636e72; font-size: 0.9em; margin-bottom: 12px; line-height: 1.5;}
+    .prato-valor {font-size: 1.3em; font-weight: bold; color: #27ae60;}
+    .erro {color: #e74c3c; text-align: center; padding: 30px;}
+    .vazio {color: #95a5a6; text-align: center; padding: 30px;}
   </style>
 </head>
 <body>
   <a href="index.html" class="voltar">← Início</a>
   <h1>🍽️ Cardápio</h1>
-
-  <div id="conteudo">
-    <p style="text-align:center; color:#888; padding:30px;">Carregando cardápio...</p>
-  </div>
-
+  <div id="conteudo"><p style="text-align:center; color:#d35400; padding:40px;">🔄 Carregando...</p></div>
   <script>
     async function carregarCardapio() {
       try {
         const res = await fetch('/api/cardapio');
+        if (!res.ok) throw new Error(`Erro ${res.status}`);
         const pratos = await res.json();
-
         if (!pratos.length) {
-          document.getElementById('conteudo').innerHTML = '<p style="text-align:center; color:#888; padding:30px;">Nenhum prato cadastrado</p>';
+          document.getElementById('conteudo').innerHTML = '<p class="vazio">Nenhum prato cadastrado</p>';
           return;
         }
-
         const agrupado = {};
         pratos.forEach(p => {
           const cat = p.categoria || 'Geral';
           if (!agrupado[cat]) agrupado[cat] = [];
           agrupado[cat].push(p);
         });
-
         let html = '';
         for (const [categoria, itens] of Object.entries(agrupado)) {
-          html += `
-            <div class="categoria">
-              <div class="categoria-nome">${categoria}</div>
-              <div class="grid">
-                ${itens.map(p => `
-                  <div class="prato ${p.ativo === false ? 'indisponivel' : ''}">
-                    <div class="prato-nome">${p.nome}</div>
-                    <div class="prato-desc">${p.descricao || ''}</div>
-                    <div class="prato-valor">R$ ${parseFloat(p.valor).toFixed(2)}</div>
-                  </div>
-                `).join('')}
-              </div>
-            </div>
-          `;
+          html += `<div class="categoria"><div class="categoria-nome">${categoria}</div><div class="grid">`;
+          itens.forEach(p => {
+            html += `<div class="prato"><div class="prato-nome">${p.nome}</div><div class="prato-desc">${p.descricao || ''}</div><div class="prato-valor">R$ ${parseFloat(p.valor).toFixed(2)}</div></div>`;
+          });
+          html += '</div></div>';
         }
-
         document.getElementById('conteudo').innerHTML = html;
       } catch (e) {
-        document.getElementById('conteudo').innerHTML = `<p style="color:red; text-align:center;">Erro: ${e.message}</p>`;
+        console.error('Erro:', e);
+        document.getElementById('conteudo').innerHTML = `<p class="erro">❌ Não carregou<br>${e.message}</p>`;
       }
     }
-
     carregarCardapio();
   </script>
 </body>
