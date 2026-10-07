@@ -263,6 +263,19 @@
         <div class="card-titulo">Relatórios</div>
         <div class="card-desc">Comparativo de vendas por dia da semana</div>
       </a>
+
+      <!-- ✅ NOVOS — Clientes e Fiado -->
+      <a href="pdv/clientes.html" class="card aviso">
+        <div class="card-icone">👥</div>
+        <div class="card-titulo">Clientes</div>
+        <div class="card-desc">Cadastro, consulta, edição e fiado</div>
+      </a>
+
+      <a href="pdv/fiado.html" class="card roxo">
+        <div class="card-icone">💰</div>
+        <div class="card-titulo">Fiado</div>
+        <div class="card-desc">Conta corrente, pagamentos e extrato</div>
+      </a>
     </div>
 
     <footer>
@@ -276,24 +289,21 @@
         const res = await fetch('/api/resumo');
         const dados = await res.json();
 
-        // Vendas do dia
         const hoje = new Date().toISOString().split('T')[0];
         const vendasHoje = (dados.pedidos || []).filter(p => 
-          p.created_at.startsWith(hoje) && p.status === 'entregue'
+          p.created_at && p.created_at.startsWith(hoje) && p.status === 'entregue'
         );
         const total = vendasHoje.reduce((s, p) => s + parseFloat(p.valor_total || 0), 0);
         document.getElementById('vendasHoje').textContent = `R$ ${total.toFixed(2)}`;
 
-        // Pendentes
         const pendentes = (dados.pedidos || []).filter(p => 
           p.status !== 'entregue' && p.status !== 'cancelado'
         ).length;
         document.getElementById('pendentes').textContent = pendentes;
 
-        // Status do Caixa
         const elStatus = document.getElementById('statusCaixa');
         if (dados.caixaAberto) {
-          elStatus.innerHTML = `<span class="ponto"></span> Aberto — ${dados.caixaAberto.operador}`;
+          elStatus.innerHTML = `<span class="ponto"></span> Aberto — ${dados.caixaAberto.operador || 'Operador'}`;
         } else {
           elStatus.innerHTML = `<span class="ponto" style="background:#e74c3c;"></span> Fechado`;
         }
@@ -303,7 +313,7 @@
     }
 
     carregarResumo();
-    setInterval(carregarResumo, 60000); // Atualiza a cada minuto
+    setInterval(carregarResumo, 60000);
   </script>
 </body>
 </html>
