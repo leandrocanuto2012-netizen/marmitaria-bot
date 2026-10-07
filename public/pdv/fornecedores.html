@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fornecedores — Marmitária</title>
+  <style>
+    * {margin:0; padding:0; font-family: system-ui; box-sizing: border-box;}
+    body {background: #f5f5f5; padding: 20px; max-width: 900px; margin: 0 auto;}
+    h1 {color: #2d3436; margin-bottom: 20px;}
+    .card {background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.08);}
+    h2 {font-size: 18px; margin-bottom: 15px; color: #d35400;}
+    form {display: flex; flex-wrap: wrap; gap: 8px;}
+    input, select, button, textarea {padding: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 15px;}
+    button {background: #27ae60; color: white; border: none; cursor: pointer; font-weight: bold;}
+    button.vermelho {background: #e74c3c;}
+    table {width: 100%; border-collapse: collapse; margin-top: 10px;}
+    th, td {padding: 12px 10px; text-align: left; border-bottom: 1px solid #eee;}
+    th {background: #f8f9fa; font-weight: 600; color: #444;}
+    .inativo {opacity: 0.5; text-decoration: line-through;}
+    .voltar {display: inline-block; margin-bottom: 15px; color: #d35400; text-decoration: none;}
+    .categoria {padding: 3px 8px; border-radius: 12px; font-size: 12px; background: #e3f2fd; color: #0d47a1;}
+  </style>
+</head>
+<body>
+  <a href="caixa.html" class="voltar">← Voltar ao Caixa</a>
+  <h1>🤝 Fornecedores</h1>
+
+  <div class="card">
+    <h2>➕ Novo Fornecedor</h2>
+    <form id="formFornecedor">
+      <input type="text" id="fsocial" placeholder="Razão Social" required style="flex:2; min-width:200px;">
+      <input type="text" id="nfantasia" placeholder="Nome Fantasia" style="flex:1; min-width:150px;">
+      <input type="text" id="cnpj" placeholder="CNPJ" style="width:140px;">
+      <input type="text" id="ftel" placeholder="Telefone" style="width:130px;">
+      <input type="email" id="femail" placeholder="E-mail" style="flex:1; min-width:180px;">
+      <select id="fcategoria" style="width:140px;">
+        <option value="">Categoria</option>
+        <option value="Carnes">Carnes</option>
+        <option value="Verduras">Verduras</option>
+        <option value="Grãos">Grãos</option>
+        <option value="Laticínios">Laticínios</option>
+        <option value="Embalagens">Embalagens</option>
+        <option value="Outros">Outros</option>
+      </select>
+      <input type="text" id="fcontato" placeholder="Contato" style="width:150px;">
+      <textarea id="fendereco" placeholder="Endereço" style="width:100%; margin-top:8px;"></textarea>
+      <textarea id="fobs" placeholder="Observações" style="width:100%;"></textarea>
+      <button type="submit">Salvar</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>📋 Lista de Fornecedores</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Nome / Fantasia</th>
+          <th>CNPJ</th>
+          <th>Contato</th>
+          <th>Categoria</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="listaFornecedores"></tbody>
+    </table>
+  </div>
+
+  <script>
+    async function carregarFornecedores() {
+      const res = await fetch('/api/fornecedores');
+      const fornecedores = await res.json();
+      const lista = document.getElementById('listaFornecedores');
+      
+      lista.innerHTML = fornecedores.map(f => `
+        <tr class="${f.ativo ? '' : 'inativo'}">
+          <td><strong>${f.razao_social}</strong><br><small>${f.nome_fantasia || '-'}</small></td>
+          <td>${f.cnpj || '-'}</td>
+          <td>${f.contato || f.telefone || '-'}</td>
+          <td><span class="categoria">${f.categoria || '-'}</span></td>
+          <td>
+            <button class="vermelho" style="padding:4px 8px; font-size:12px;" onclick="alternarStatus(${f.id}, ${f.ativo})">
+              ${f.ativo ? 'Desativar' : 'Reativar'}
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    document.getElementById('formFornecedor').addEventListener('submit', async e => {
+      e.preventDefault();
+      await fetch('/api/fornecedores', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          razao_social: document.getElementById('fsocial').value,
+          nome_fantasia: document.getElementById('nfantasia').value,
+          cnpj: document.getElementById('cnpj').value.replace(/\D/g, ''),
+          telefone: document.getElementById('ftel').value.replace(/\D/g, ''),
+          email: document.getElementById('femail').value,
+          categoria: document.getElementById('fcategoria').value,
+          contato: document.getElementById('fcontato').value,
+          endereco: document.getElementById('fendereco').value,
+          observacoes: document.getElementById('fobs').value
+        })
+      });
+      e.target.reset();
+      carregarFornecedores();
+      alert('✅ Fornecedor cadastrado!');
+    });
+
+    async function alternarStatus(id, atual) {
+      if (!confirm(`Confirma ${atual ? 'desativar' : 'reativar'}?`)) return;
+      await fetch(`/api/fornecedores/${id}/status`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ativo: !atual})
+      });
+      carregarFornecedores();
+    }
+
+    carregarFornecedores();
+  </script>
+</body>
+</html>

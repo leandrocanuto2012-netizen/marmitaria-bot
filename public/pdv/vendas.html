@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pedidos — Marmitária</title>
+  <style>
+    * {margin:0; padding:0; font-family: system-ui; box-sizing: border-box;}
+    body {background: #f5f5f5; padding: 20px; max-width: 900px; margin: 0 auto;}
+    h1 {color: #2d3436; margin-bottom: 20px;}
+    .pedido {background: white; padding: 18px; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.08);}
+    .cabecalho {display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;}
+    .numero {font-weight: bold; font-size: 18px; color: #d35400;}
+    .status {padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: bold;}
+    .recebido {background: #fff3cd; color: #856404;}
+    .preparando {background: #cce5ff; color: #004085;}
+    .pronto {background: #d4edda; color: #155724;}
+    .entregue {background: #e2e3e5; color: #383d41;}
+    .dados {margin: 8px 0; color: #495057;}
+    .valor {font-size: 17px; font-weight: bold; color: #27ae60; margin-top: 8px;}
+    .acoes {margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap;}
+    button {padding: 8px 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px;}
+    .btn-prep {background: #3498db; color: white;}
+    .btn-pronto {background: #27ae60; color: white;}
+    .btn-entregue {background: #95a5a6; color: white;}
+    .atualizar {background: #f39c12; color: white; margin-bottom: 20px; width: 100%;}
+    .voltar {display: inline-block; margin-bottom: 15px; color: #d35400; text-decoration: none;}
+  </style>
+</head>
+<body>
+  <a href="caixa.html" class="voltar">← Voltar ao Caixa</a>
+  <h1>🛒 Pedidos Recebidos</h1>
+  
+  <button class="atualizar" onclick="carregarPedidos()">🔄 Atualizar</button>
+  <div id="listaPedidos"></div>
+
+  <script>
+    async function carregarPedidos() {
+      const res = await fetch('/api/pedidos');
+      const pedidos = await res.json();
+      const lista = document.getElementById('listaPedidos');
+      
+      lista.innerHTML = pedidos.length === 0 
+        ? '<p style="text-align:center; color:#888; padding:20px;">Nenhum pedido</p>'
+        : pedidos.map(p => `
+          <div class="pedido">
+            <div class="cabecalho">
+              <span class="numero">#${p.id}</span>
+              <span class="status ${p.status || 'recebido'}">${(p.status || 'recebido').toUpperCase()}</span>
+            </div>
+            <div class="dados">
+              <strong>${p.nome_cliente || 'Cliente'}</strong><br>
+              📞 ${p.telefone_cliente || ''}<br>
+              📦 ${p.tipo === 'balcao' ? 'Retirada' : p.tipo === 'entrega' ? 'Entrega' : '-'}<br>
+              ${p.observacao ? `📝 ${p.observacao}` : ''}<br>
+              🕒 ${new Date(p.created_at).toLocaleTimeString('pt-BR')}
+            </div>
+            <div class="valor">R$ ${parseFloat(p.valor_total).toFixed(2)}</div>
+            <div class="acoes">
+              ${(p.status || 'recebido') === 'recebido' ? `<button class="btn-prep" onclick="mudarStatus(${p.id}, 'preparando')">🔥 Preparando</button>` : ''}
+              ${p.status === 'preparando' ? `<button class="btn-pronto" onclick="mudarStatus(${p.id}, 'pronto')">✅ Pronto</button>` : ''}
+              ${p.status === 'pronto' ? `<button class="btn-entregue" onclick="mudarStatus(${p.id}, 'entregue')">📦 Entregue</button>` : ''}
+              ${p.status === 'entregue' ? '<span style="color:#95a5a6;">✅ Concluído</span>' : ''}
+            </div>
+          </div>
+        `).join('');
+    }
+
+    async function mudarStatus(id, novoStatus) {
+      if (!confirm(`Mudar para "${novoStatus}"?`)) return;
+      await fetch(`/api/pedidos/${id}/status`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({status: novoStatus})
+      });
+      carregarPedidos();
+    }
+
+    carregarPedidos();
+    setInterval(carregarPedidos, 30000);
+  </script>
+</body>
+</html>

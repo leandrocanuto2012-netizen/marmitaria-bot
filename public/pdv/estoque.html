@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estoque — Marmitária</title>
+  <style>
+    * {margin:0; padding:0; font-family: system-ui; box-sizing: border-box;}
+    body {background: #f5f5f5; padding: 20px; max-width: 900px; margin: 0 auto;}
+    h1 {color: #2d3436; margin-bottom: 20px;}
+    .card {background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 6px rgba(0,0,0,0.08);}
+    h2 {font-size: 18px; margin-bottom: 15px; color: #d35400;}
+    form {display: flex; flex-wrap: wrap; gap: 8px;}
+    input, select, button, textarea {padding: 10px; border-radius: 8px; border: 1px solid #ddd; font-size: 15px;}
+    button {background: #27ae60; color: white; border: none; cursor: pointer; font-weight: bold;}
+    table {width: 100%; border-collapse: collapse; margin-top: 10px;}
+    th, td {padding: 12px 10px; text-align: left; border-bottom: 1px solid #eee;}
+    th {background: #f8f9fa; font-weight: 600; color: #444;}
+    .baixo {color: #e74c3c; font-weight: bold;}
+    .voltar {display: inline-block; margin-bottom: 15px; color: #d35400; text-decoration: none;}
+  </style>
+</head>
+<body>
+  <a href="caixa.html" class="voltar">← Voltar ao Caixa</a>
+  <h1>📦 Estoque / Produtos</h1>
+
+  <div class="card">
+    <h2>➕ Novo Produto (Cardápio)</h2>
+    <form id="formProduto">
+      <input type="text" id="nome" placeholder="Nome do prato" required style="flex:2; min-width:200px;">
+      <input type="text" id="categoria" placeholder="Categoria" style="width:140px;" value="Refeições">
+      <input type="number" id="preco" placeholder="Preço R$" step="0.01" required style="width:130px;">
+      <input type="number" id="estoque" placeholder="Estoque" value="50" style="width:100px;">
+      <textarea id="descricao" placeholder="Descrição / Ingredientes" style="width:100%; margin-top:8px;"></textarea>
+      <button type="submit">Salvar Produto</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>📋 Produtos Cadastrados</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Nome</th>
+          <th>Categoria</th>
+          <th>Preço</th>
+          <th>Estoque</th>
+          <th>Ações</th>
+        </tr>
+      </thead>
+      <tbody id="listaProdutos"></tbody>
+    </table>
+  </div>
+
+  <script>
+    async function carregarProdutos() {
+      const res = await fetch('/api/produtos');
+      const produtos = await res.json();
+      const lista = document.getElementById('listaProdutos');
+      
+      lista.innerHTML = produtos.map(p => `
+        <tr>
+          <td><strong>${p.nome}</strong>${p.descricao ? `<br><small>${p.descricao}</small>` : ''}</td>
+          <td>${p.categoria || '-'}</td>
+          <td>R$ ${parseFloat(p.preco).toFixed(2)}</td>
+          <td class="${(p.estoque_atual || 0) < 5 ? 'baixo' : ''}">${p.estoque_atual || 0}</td>
+          <td>
+            <button style="padding:4px 8px; font-size:12px; background:#3498db;" onclick="ajustarEstoque(${p.id}, 1)">+1</button>
+            <button style="padding:4px 8px; font-size:12px; background:#e74c3c;" onclick="ajustarEstoque(${p.id}, -1)">−1</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    document.getElementById('formProduto').addEventListener('submit', async e => {
+      e.preventDefault();
+      await fetch('/api/produtos', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          nome: document.getElementById('nome').value,
+          categoria: document.getElementById('categoria').value,
+          preco: parseFloat(document.getElementById('preco').value),
+          estoque_atual: parseInt(document.getElementById('estoque').value) || 0,
+          descricao: document.getElementById('descricao').value
+        })
+      });
+      e.target.reset();
+      carregarProdutos();
+      alert('✅ Produto cadastrado! Já aparece no cardápio!');
+    });
+
+    async function ajustarEstoque(id, qtd) {
+      await fetch(`/api/produtos/${id}/estoque`, {
+        method: 'PATCH',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({quantidade: qtd})
+      });
+      carregarProdutos();
+    }
+
+    carregarProdutos();
+  </script>
+</body>
+</html>
