@@ -35,14 +35,12 @@
     .divergencia {padding: 12px; border-radius: 8px; margin: 10px 0;}
     .divergencia.sim {background: #fff3cd; border-left: 4px solid #f57c00;}
     .divergencia.nao {background: #e8f5e9; border-left: 4px solid #27ae60;}
-    .erro-pagina {color: #e74c3c; padding: 20px; text-align: center;}
   </style>
 </head>
 <body>
   <a href="../index.html" class="voltar">← Início</a>
   <h1>💰 Caixa / PDV</h1>
   <div id="avisoGeral" class="aviso"></div>
-  <div id="erroPagina" class="erro-pagina oculto"></div>
 
   <div id="semCaixa" class="card aviso">
     <h2>🔒 Nenhum caixa aberto</h2>
@@ -103,23 +101,12 @@
       setTimeout(() => av.style.display = 'none', 5000);
     }
 
-    function mostrarErro(texto) {
-      const el = document.getElementById('erroPagina');
-      el.textContent = '❌ ' + texto;
-      el.classList.remove('oculto');
-    }
-
     async function carregar() {
       try {
-        document.getElementById('erroPagina').classList.add('oculto');
         const res = await fetch('/api/caixa/atual');
-        
-        if (!res.ok) {
-          throw new Error(`Servidor retornou: ${res.status}`);
-        }
-
+        if (!res.ok) throw new Error('Servidor: ' + res.status);
         const dados = await res.json();
-        
+
         document.getElementById('semCaixa').classList.add('oculto');
         document.getElementById('caixaAberto').classList.add('oculto');
 
@@ -134,7 +121,7 @@
         document.getElementById('caixaIdFechar').value = caixaAtual.id;
         document.getElementById('nomeOperador').textContent = caixaAtual.operador_nome;
         document.getElementById('dataAbertura').textContent = new Date(caixaAtual.data_abertura).toLocaleString('pt-BR');
-        document.getElementById('valInicial').textContent = `R$ ${parseFloat(caixaAtual.valor_inicial).toFixed(2)}`;
+        document.getElementById('valInicial').textContent = 'R$ ' + parseFloat(caixaAtual.valor_inicial).toFixed(2);
 
         let entradas = 0, saidas = 0;
         (caixaAtual.movimentos || []).forEach(m => {
@@ -142,13 +129,13 @@
           if (m.tipo === 'saida') saidas += parseFloat(m.valor);
         });
 
-        document.getElementById('valEntradas').textContent = `+ R$ ${entradas.toFixed(2)}`;
-        document.getElementById('valSaidas').textContent = `- R$ ${saidas.toFixed(2)}`;
-        document.getElementById('valEsperado').textContent = `R$ ${parseFloat(caixaAtual.valor_esperado).toFixed(2)}`;
+        document.getElementById('valEntradas').textContent = '+ R$ ' + entradas.toFixed(2);
+        document.getElementById('valSaidas').textContent = '- R$ ' + saidas.toFixed(2);
+        document.getElementById('valEsperado').textContent = 'R$ ' + parseFloat(caixaAtual.valor_esperado).toFixed(2);
 
         const lista = document.getElementById('listaMov');
         if (!caixaAtual.movimentos.length) {
-          lista.innerHTML = '<p style="color:#888; padding:10px;">Nenhum lançamento ainda</p>';
+          lista.innerHTML = '<p style="color:#888; padding:10px;">Nenhum lançamento</p>';
         } else {
           lista.innerHTML = caixaAtual.movimentos.map(m => `
             <div class="mov-item">
@@ -159,8 +146,7 @@
           `).join('');
         }
       } catch (e) {
-        console.error('Erro carregar:', e);
-        mostrarErro(e.message + ' — Verifique se o servidor está rodando');
+        mostrarAviso('Erro: ' + e.message, 'erro');
       }
     }
 
@@ -198,7 +184,7 @@
             tipo: document.getElementById('tipo').value,
             valor: document.getElementById('valorMov').value,
             descricao: document.getElementById('descricao').value.trim(),
-            forma_pagamento: 'dinheiro',
+            forma_pagamento: document.getElementById('pagamento').value,
             usuario: localStorage.getItem('nomeUsuario') || 'Sistema'
           })
         });
@@ -243,7 +229,7 @@
 
     document.getElementById('formFechar').addEventListener('submit', async e => {
       e.preventDefault();
-      if (!confirm('CONFIRMAR FECHAMENTO?\nDepois não será possível alterar!')) return;
+      if (!confirm('CONFIRMAR FECHAMENTO?')) return;
       try {
         const res = await fetch('/api/caixa/fechar', {
           method: 'POST',
