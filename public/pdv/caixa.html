@@ -350,6 +350,23 @@ async function carregarRegistros() {
   });
   lista.innerHTML += '</tbody></table>';
 }
+  // ========== BOTÃO ADMINISTRATIVO ==========
+function abrirPainelADM() {
+  const senha = prompt('🔒 Digite a senha do Administrador:');
+  
+  // Se o usuário cancelar
+  if (senha === null) return;
+
+  // SENHA — pode mudar aqui!
+  const SENHA_CORRETA = 'admin123';
+
+  if (senha === SENHA_CORRETA) {
+    sessionStorage.setItem('adm_autorizado', 'sim');
+    window.location.href = '../dashboard.html';
+  } else {
+    alert('❌ Senha incorreta! Tente novamente.');
+  }
+}
 </script>
 </body>
 </html>
