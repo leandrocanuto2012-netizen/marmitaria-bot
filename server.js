@@ -260,6 +260,31 @@ app.get('/api/produtos/lista', async (req, res) => {
   }
 });
 // ==========================================
+// 🗑️ EXCLUIR item do cardápio
+// ==========================================
+app.post('/api/cardapio-dia/excluir', async (req, res) => {
+  try {
+    const { id } = req.body;
+    const empresa = await pool.query(`SELECT id FROM companies LIMIT 1`);
+    if (empresa.rows.length === 0) return res.status(400).json({ erro: 'Empresa não cadastrada' });
+
+    const result = await pool.query(`
+      DELETE FROM daily_menu
+      WHERE id = $1 AND company_id = $2
+      RETURNING *
+    `, [id, empresa.rows[0].id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ sucesso: false, erro: 'Item não encontrado' });
+    }
+
+    res.json({ sucesso: true });
+  } catch (e) {
+    console.error('Excluir cardápio:', e);
+    res.status(500).json({ sucesso: false, erro: e.message });
+  }
+});
+// ==========================================
 // INICIAR
 // ==========================================
 const PORT = process.env.PORT || 8080;
