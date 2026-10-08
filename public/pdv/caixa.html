@@ -54,21 +54,19 @@
         <div class="grupo-campos">
           <div class="campo">
             <label>Cliente</label>
-            <div class="linha">
-              <select id="cliente-tipo" onchange="trocarCliente()">
-                <option value="ficticio">Não informado (consumidor)</option>
-                <option value="cadastrado">Já cadastrado</option>
-                <option value="novo">Cadastrar agora</option>
-              </select>
-            </div>
+            <select id="cliente-tipo" onchange="trocarCliente()">
+              <option value="ficticio">Não informado (consumidor)</option>
+              <option value="cadastrado">Já cadastrado</option>
+              <option value="novo">Cadastrar agora</option>
+            </select>
           </div>
           
-          <div class="campo" id="campo-nome">
+          <div class="campo" id="campo-nome" style="display: none;">
             <label>Nome do Cliente</label>
             <input type="text" id="cliente-nome" placeholder="Nome">
           </div>
           
-          <div class="campo" id="campo-telefone">
+          <div class="campo" id="campo-telefone" style="display: none;">
             <label>Telefone (opcional)</label>
             <input type="tel" id="cliente-tel" placeholder="(XX) XXXXX-XXXX">
           </div>
@@ -84,11 +82,9 @@
         </div>
 
         <h3 style="margin-top: 16px;">Itens do Pedido</h3>
-        <div id="lista-itens-pedido" class="grupo-campos">
-          <!-- Itens adicionados aparecem aqui -->
-        </div>
+        <div id="lista-itens-pedido" class="grupo-campos"></div>
 
-        <div class="linha" style="margin: 12px 0;">
+        <div class="linha" style="margin: 12px 0; align-items: flex-end;">
           <div class="campo">
             <label>Produto</label>
             <select id="produto-nome">
@@ -99,11 +95,11 @@
             <label>Quantidade</label>
             <input type="number" id="produto-qtd" value="1" min="1">
           </div>
-          <div class="campo" style="max-width: 110px;">
-            <label>Preço Unitário</label>
+          <div class="campo" style="max-width: 130px;">
+            <label>Preço Unitário R$</label>
             <input type="number" step="0.01" id="produto-preco" placeholder="0.00" readonly>
           </div>
-          <button class="botao botao--principal" style="margin-top: 18px;" onclick="adicionarItem()">+</button>
+          <button class="botao botao--principal" onclick="adicionarItem()">+</button>
         </div>
 
         <div class="campo">
@@ -128,21 +124,18 @@
       </div>
     </div>
 
+    <a href="dashboard.html" class="voltar" style="margin-top: 20px;">← Voltar ao Painel Principal</a>
   </main>
 
 <script>
 let itensPedido = [];
 let produtosLista = [];
 
-// ==========================================
-// INICIALIZAÇÃO
-// ==========================================
 document.addEventListener('DOMContentLoaded', () => {
   carregarProdutos();
   verificarCaixaAberto();
 });
 
-// Carregar produtos no dropdown
 async function carregarProdutos() {
   try {
     const res = await fetch('/api/produtos/lista');
@@ -150,9 +143,8 @@ async function carregarProdutos() {
     const sel = document.getElementById('produto-nome');
     sel.innerHTML = '<option value="">Selecione...</option>';
     produtosLista.forEach(p => {
-      sel.innerHTML += `<option value="${p.nome}" data-preco="${p.preco}">${p.nome} — R$ ${p.preco.toFixed(2)}</option>`;
+      sel.innerHTML += `<option value="${p.nome}" data-preco="${p.preco}">${p.nome} — R$ ${Number(p.preco).toFixed(2)}</option>`;
     });
-    // Atualiza preço ao escolher produto
     sel.addEventListener('change', () => {
       const opt = sel.selectedOptions[0];
       if (opt.dataset.preco) {
@@ -164,18 +156,11 @@ async function carregarProdutos() {
   }
 }
 
-// ==========================================
-// CAIXA
-// ==========================================
 async function verificarCaixaAberto() {
   const res = await fetch('/api/resumo');
   const dados = await res.json();
-  
-  if (dados.caixaAberto) {
-    caixaAberto(dados.caixaAberto);
-  } else {
-    caixaFechado();
-  }
+  if (dados.caixaAberto) caixaAberto(dados.caixaAberto);
+  else caixaFechado();
 }
 
 function caixaAberto(caixa) {
@@ -195,7 +180,6 @@ function caixaFechado() {
 async function abrirCaixa() {
   const operador = document.getElementById('operador').value.trim();
   const saldo = parseFloat(document.getElementById('saldo-inicial').value) || 0;
-  
   if (!operador) { alert('Informe o nome do operador!'); return; }
 
   const res = await fetch('/api/caixa/abrir', {
@@ -205,42 +189,23 @@ async function abrirCaixa() {
   });
 
   const ret = await res.json();
-  if (ret.sucesso) {
-    alert('✅ Caixa aberto!');
-    caixaAberto(ret.caixa);
-  } else {
-    alert('❌ ' + (ret.erro || 'Erro ao abrir'));
-  }
+  if (ret.sucesso) { alert('✅ Caixa aberto!'); caixaAberto(ret.caixa); }
+  else alert('❌ ' + (ret.erro || 'Erro ao abrir'));
 }
 
 async function fecharCaixa() {
   const saldoContado = prompt('Saldo contado em caixa R$:');
   if (!saldoContado) return;
-  const saldoSistema = 0; // calcular com soma de vendas
-  const diferenca = parseFloat(saldoContado) - saldoSistema;
-
   const res = await fetch('/api/caixa/fechar', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      saldo_contado: parseFloat(saldoContado),
-      saldo_sistema: saldoSistema,
-      diferenca: diferenca
-    })
+    body: JSON.stringify({ saldo_contado: parseFloat(saldoContado), saldo_sistema: 0, diferenca: 0 })
   });
-
   const ret = await res.json();
-  if (ret.sucesso) {
-    alert('✅ Caixa fechado!');
-    location.reload();
-  } else {
-    alert('❌ ' + ret.erro);
-  }
+  if (ret.sucesso) { alert('✅ Caixa fechado!'); location.href = 'dashboard.html'; }
+  else alert('❌ ' + ret.erro);
 }
 
-// ==========================================
-// ABA DE NAVEGAÇÃO
-// ==========================================
 function abaVendas() {
   document.getElementById('form-manual').style.display = 'none';
   document.getElementById('area-registros').style.display = 'none';
@@ -264,28 +229,20 @@ function abaRegistros() {
   document.getElementById('btn-registros').className = 'botao botao--principal';
 }
 
-// ==========================================
-// CLIENTE
-// ==========================================
 function trocarCliente() {
   const tipo = document.getElementById('cliente-tipo').value;
   document.getElementById('campo-nome').style.display = tipo === 'ficticio' ? 'none' : 'block';
   document.getElementById('campo-telefone').style.display = tipo === 'ficticio' ? 'none' : 'block';
 }
 
-// ==========================================
-// ITENS DO PEDIDO
-// ==========================================
 function adicionarItem() {
   const nome = document.getElementById('produto-nome').value;
   const qtd = parseInt(document.getElementById('produto-qtd').value) || 1;
   const preco = parseFloat(document.getElementById('produto-preco').value) || 0;
-
   if (!nome || preco <= 0) { alert('Selecione um produto!'); return; }
 
   itensPedido.push({ nome_produto: nome, quantidade: qtd, preco_unitario: preco });
   atualizarListaItens();
-  
   document.getElementById('produto-nome').value = '';
   document.getElementById('produto-qtd').value = '1';
   document.getElementById('produto-preco').value = '';
@@ -300,32 +257,23 @@ function atualizarListaItens() {
   const lista = document.getElementById('lista-itens-pedido');
   lista.innerHTML = '';
   let total = 0;
-
   itensPedido.forEach((item, i) => {
     const subtotal = item.quantidade * item.preco_unitario;
     total += subtotal;
     lista.innerHTML += `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#f9fafb;border-radius:8px;">
-        <div>
-          <strong>${item.nome_produto}</strong> × ${item.quantidade} = R$ ${subtotal.toFixed(2)}
-        </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:#f9fafb;border-radius:8px;">
+        <div><strong>${item.nome_produto}</strong> × ${item.quantidade} = R$ ${subtotal.toFixed(2)}</div>
         <button class="botao botao--perigo" style="padding:4px 8px;font-size:12px;" onclick="removerItem(${i})">✕</button>
       </div>
     `;
   });
-
   document.getElementById('valor-total').textContent = `R$ ${total.toFixed(2)}`;
 }
 
-// ==========================================
-// FINALIZAR VENDA
-// ==========================================
 async function finalizarVenda() {
   if (!itensPedido.length) { alert('Adicione pelo menos um item!'); return; }
-
   const tipoCli = document.getElementById('cliente-tipo').value;
-  const nomeCli = document.getElementById('cliente-nome').value.trim() || 
-    (tipoCli === 'ficticio' ? 'Consumidor' : 'Não informado');
+  const nomeCli = document.getElementById('cliente-nome').value.trim() || (tipoCli === 'ficticio' ? 'Consumidor' : 'Não informado');
   const telCli = document.getElementById('cliente-tel').value.trim() || '';
   const tipoEntrega = document.getElementById('tipo-entrega').value;
   const obs = document.getElementById('obs').value.trim();
@@ -335,13 +283,8 @@ async function finalizarVenda() {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      nome_cliente: nomeCli,
-      telefone_cliente: telCli,
-      tipo: tipoEntrega,
-      observacao: obs,
-      valor_total: valorTotal,
-      itens: itensPedido,
-      status: 'aberto'
+      nome_cliente: nomeCli, telefone_cliente: telCli, tipo: tipoEntrega,
+      observacao: obs, valor_total: valorTotal, itens: itensPedido, status: 'aberto'
     })
   });
 
@@ -349,21 +292,14 @@ async function finalizarVenda() {
   if (ret.sucesso) {
     alert(`✅ Venda registrada!\nPedido: ${ret.id}`);
     imprimirCupom(ret.id, nomeCli, valorTotal, itensPedido);
-    // Limpar
-    itensPedido = [];
-    atualizarListaItens();
+    itensPedido = []; atualizarListaItens();
     document.getElementById('cliente-nome').value = '';
     document.getElementById('cliente-tel').value = '';
     document.getElementById('obs').value = '';
     carregarRegistros();
-  } else {
-    alert('❌ Erro: ' + ret.erro);
-  }
+  } else alert('❌ Erro: ' + ret.erro);
 }
 
-// ==========================================
-// CUPOM
-// ==========================================
 function imprimirCupom(id, nome, total, itens) {
   const data = new Date().toLocaleString('pt-BR');
   const janela = window.open('', '_blank', 'width=320,height=600');
@@ -389,19 +325,14 @@ function imprimirCupom(id, nome, total, itens) {
   janela.print();
 }
 
-// ==========================================
-// REGISTROS
-// ==========================================
 async function carregarRegistros() {
   const res = await fetch('/api/pedidos');
   const vendas = await res.json();
   const lista = document.getElementById('lista-vendas');
-  
   if (!vendas.length) {
     lista.innerHTML = '<p style="color:var(--wa-texto-sec);text-align:center;padding:20px;">Nenhuma venda registrada</p>';
     return;
   }
-
   lista.innerHTML = '<table class="tabela"><thead><tr><th>Data</th><th>Cliente</th><th>Total</th></tr></thead><tbody>';
   vendas.slice(0, 10).forEach(v => {
     lista.innerHTML += `
