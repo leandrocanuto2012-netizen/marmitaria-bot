@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Caixa / PDV — Marmitaria</title>
-  <link rel="stylesheet" href="estilo-padrao.css">
+  <link rel="stylesheet" href="../estilo-padrao.css">
 </head>
 <body>
 
@@ -16,7 +16,7 @@
   <main class="container">
 
     <!-- STATUS DO CAIXA -->
-    <div id="status-caixa" class="cartao cartao--alerta">
+    <div id="status-caixa" class="cartao">
       <div class="status status--erro" id="etiqueta-status">
         🔴 CAIXA FECHADO — Informe o operador
       </div>
@@ -124,7 +124,7 @@
       </div>
     </div>
 
-    <a href="dashboard.html" class="voltar" style="margin-top: 20px;">← Voltar ao Painel Principal</a>
+    <a href="../index.html" class="voltar" style="margin-top: 20px;">← Sair / Voltar ao Login</a>
   </main>
 
 <script>
@@ -132,6 +132,10 @@ let itensPedido = [];
 let produtosLista = [];
 
 document.addEventListener('DOMContentLoaded', () => {
+  if (!localStorage.getItem('marmitaria_logado')) {
+    window.location.href = '../index.html';
+    return;
+  }
   carregarProdutos();
   verificarCaixaAberto();
 });
@@ -199,10 +203,10 @@ async function fecharCaixa() {
   const res = await fetch('/api/caixa/fechar', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ saldo_contado: parseFloat(saldoContado), saldo_sistema: 0, diferenca: 0 })
+    body: JSON.stringify({ saldo_contado: parseFloat(saldoContado) })
   });
   const ret = await res.json();
-  if (ret.sucesso) { alert('✅ Caixa fechado!'); location.href = 'dashboard.html'; }
+  if (ret.sucesso) { alert('✅ Caixa fechado!'); window.location.href = '../index.html'; }
   else alert('❌ ' + ret.erro);
 }
 
