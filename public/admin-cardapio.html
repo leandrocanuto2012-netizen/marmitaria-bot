@@ -4,121 +4,208 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Editar Cardápio — Marmitaria</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, sans-serif; }
-    body { background: #f0f2f5; padding: 20px; max-width: 900px; margin: 0 auto; }
-    .cabecalho { background: #075E54; color: white; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; }
-    .cabecalho h1 { font-size: 18px; }
-    .form-cardapio { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-    .form-cardapio h2 { font-size: 16px; margin-bottom: 15px; color: #111; }
-    .linha { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
-    .campo { flex: 1; min-width: 180px; }
-    .campo label { display: block; font-size: 13px; color: #666; margin-bottom: 4px; }
-    .campo input, .campo select, .campo textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; }
-    .btn { padding: 10px 20px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 14px; }
-    .btn-verde { background: #25D366; color: white; }
-    .btn-verde:hover { background: #1fb85c; }
-    .btn-cinza { background: #e5e7eb; color: #333; }
-    .item-lista { background: white; padding: 12px; border-radius: 8px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
-    .item-info div { font-size: 14px; }
-    .item-nome { font-weight: 600; }
-    .item-preco { color: #075E54; font-weight: 700; }
-    .acoes button { margin-left: 6px; padding: 4px 8px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; }
-    .btn-excluir { background: #fee2e2; color: #dc2626; }
-    .voltar { display: inline-block; margin-bottom: 15px; color: #075E54; text-decoration: none; }
-  </style>
+  <link rel="stylesheet" href="estilo-padrao.css">
 </head>
 <body>
 
-  <a href="cardapio.html" class="voltar">← Voltar para o Cardápio</a>
+  <main class="container">
+    <a href="cardapio.html" class="voltar">← Voltar para o Cardápio</a>
 
-  <div class="cabecalho">
-    <h1>⚙️ Editar Cardápio do Dia</h1>
-  </div>
+    <header class="cabecalho" style="margin-bottom: 20px;">
+      <h1>⚙️ Editar Cardápio do Dia</h1>
+      <p>Altere os itens e atualize para os clientes em tempo real</p>
+    </header>
 
-  <div class="form-cardapio">
-    <h2>Adicionar/Editar Item</h2>
-    <div class="linha">
-      <div class="campo">
-        <label>Data</label>
-        <input type="date" id="item-data">
+    <!-- FORMULÁRIO — Adicionar / Editar -->
+    <div class="cartao">
+      <h2 id="titulo-form">Adicionar Novo Item</h2>
+      <input type="hidden" id="item-id">
+      
+      <div class="grupo-campos">
+        <div class="linha">
+          <div class="campo">
+            <label>Data</label>
+            <input type="date" id="item-data">
+          </div>
+          <div class="campo">
+            <label>Categoria</label>
+            <select id="item-categoria">
+              <option value="Prato Principal">🍽️ Prato Principal</option>
+              <option value="Bebidas">🥤 Bebidas</option>
+              <option value="Sobremesas">🍮 Sobremesas</option>
+              <option value="Outros">📦 Outros</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="linha">
+          <div class="campo">
+            <label>Nome do Prato *</label>
+            <input type="text" id="item-nome" placeholder="Ex: Feijoada Completa" required>
+          </div>
+          <div class="campo">
+            <label>Preço R$ *</label>
+            <input type="number" step="0.01" id="item-preco" placeholder="0.00" required>
+          </div>
+        </div>
+        
+        <div class="campo">
+          <label>Descrição / Ingredientes</label>
+          <textarea id="item-desc" rows="2" placeholder="Arroz, feijão, carne, farofa..."></textarea>
+        </div>
+        
+        <div class="linha">
+          <div class="campo">
+            <label>Ordem de Exibição</label>
+            <input type="number" id="item-ordem" value="0" min="0">
+          </div>
+          <div class="campo" style="display: flex; align-items: flex-end; padding-bottom: 10px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+              <input type="checkbox" id="item-disponivel" checked>
+              Disponível no cardápio
+            </label>
+          </div>
+        </div>
       </div>
-      <div class="campo">
-        <label>Categoria</label>
-        <select id="item-categoria">
-          <option value="Prato Principal">🍽️ Prato Principal</option>
-          <option value="Bebidas">🥤 Bebidas</option>
-          <option value="Sobremesas">🍮 Sobremesas</option>
-          <option value="Outros">📦 Outros</option>
-        </select>
+
+      <div style="display: flex; gap: 10px; margin-top: 10px;">
+        <button class="botao botao--principal" onclick="salvarItem()">✅ Salvar</button>
+        <button class="botao botao--secundario" id="btn-cancelar" onclick="cancelarEdicao()" style="display: none;">❌ Cancelar</button>
       </div>
     </div>
-    <div class="linha">
-      <div class="campo">
-        <label>Nome do Prato</label>
-        <input type="text" id="item-nome" placeholder="Ex: Feijoada Completa">
-      </div>
-      <div class="campo">
-        <label>Preço R$</label>
-        <input type="number" step="0.01" id="item-preco" placeholder="0.00">
-      </div>
-    </div>
-    <div class="linha">
-      <div class="campo" style="flex: 2;">
-        <label>Descrição / Ingredientes</label>
-        <textarea id="item-desc" rows="2" placeholder="Arroz, feijão, carne, farofa..."></textarea>
-      </div>
-    </div>
-    <button class="btn btn-verde" onclick="salvarItem()">✅ Salvar no Cardápio</button>
-  </div>
 
-  <div class="form-cardapio">
-    <h2>Itens do Dia</h2>
-    <div id="lista-itens"></div>
-  </div>
+    <!-- LISTA DE ITENS COM AÇÕES -->
+    <div class="cartao">
+      <h2 id="titulo-lista">Itens do Dia</h2>
+      <div class="campo" style="margin-bottom: 15px;">
+        <label>Filtrar por Data</label>
+        <input type="date" id="filtro-data-lista" onchange="carregarItens()">
+      </div>
+      
+      <div id="lista-itens">
+        <p style="color: var(--wa-texto-sec); text-align: center; padding: 20px;">Carregando...</p>
+      </div>
+    </div>
+  </main>
 
 <script>
 const hoje = new Date().toISOString().split('T')[0];
 document.getElementById('item-data').value = hoje;
+document.getElementById('filtro-data-lista').value = hoje;
 
+// ==========================================
+// CARREGAR LISTA
+// ==========================================
 async function carregarItens() {
-  const data = document.getElementById('item-data').value;
+  const data = document.getElementById('filtro-data-lista').value;
   const res = await fetch(`/api/cardapio-dia?data=${data}`);
   const itens = await res.json();
   const lista = document.getElementById('lista-itens');
   
   if (!itens.length) {
-    lista.innerHTML = '<p style="color:#888;text-align:center;padding:20px">Nenhum item cadastrado para esta data</p>';
+    lista.innerHTML = '<p style="color: var(--wa-texto-sec); text-align: center; padding: 20px;">📭 Nenhum item cadastrado para esta data</p>';
     return;
   }
+
+  // Agrupar por categoria
+  const agrupado = {};
+  itens.forEach(item => {
+    if (!agrupado[item.categoria]) agrupado[item.categoria] = [];
+    agrupado[item.categoria].push(item);
+  });
 
   lista.innerHTML = '';
-  itens.forEach(item => {
-    lista.innerHTML += `
-      <div class="item-lista">
-        <div class="item-info">
-          <div class="item-nome">${item.nome}</div>
-          <div style="font-size:12px;color:#666">${item.categoria} · ${item.descricao || 'Sem descrição'}</div>
+  for (const [categoria, itensCat] of Object.entries(agrupado)) {
+    lista.innerHTML += `<h3 style="margin: 16px 0 8px; color: var(--wa-cabecalho);">${categoria}</h3>`;
+    
+    itensCat.forEach(item => {
+      lista.innerHTML += `
+        <div style="background: ${item.disponivel ? 'var(--wa-branco)' : '#F3F4F6'}; padding: 12px; border-radius: 8px; margin-bottom: 8px; border: 1px solid var(--wa-borda); ${!item.disponivel ? 'opacity: 0.7;' : ''}">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div style="flex: 1;">
+              <div style="font-weight: 600; font-size: 15px; ${!item.disponivel ? 'text-decoration: line-through;' : ''}">
+                ${item.nome}
+                ${!item.disponivel ? '<span style="color: var(--wa-erro); font-size: 12px; margin-left: 8px;">Indisponível</span>' : ''}
+              </div>
+              ${item.descricao ? `<div style="font-size: 13px; color: var(--wa-texto-sec); margin-top: 2px;">${item.descricao}</div>` : ''}
+              <div style="font-weight: 700; color: var(--wa-cabecalho); margin-top: 4px;">R$ ${Number(item.preco).toFixed(2)}</div>
+            </div>
+            <div style="display: flex; gap: 6px; margin-left: 10px;">
+              <button class="botao botao--secundario" style="padding: 6px 10px; font-size: 12px;" onclick="editarItem('${item.id}')">✏️ Editar</button>
+              <button class="botao botao--perigo" style="padding: 6px 10px; font-size: 12px;" onclick="excluirItem('${item.id}', '${item.nome}')">🗑️ Excluir</button>
+            </div>
+          </div>
         </div>
-        <div class="item-preco">R$ ${Number(item.preco).toFixed(2)}</div>
-      </div>
-    `;
-  });
+      `;
+    });
+  }
 }
 
-async function salvarItem() {
-  const dados = {
-    data: document.getElementById('item-data').value,
-    nome: document.getElementById('item-nome').value.trim(),
-    descricao: document.getElementById('item-desc').value.trim(),
-    preco: parseFloat(document.getElementById('item-preco').value) || 0,
-    categoria: document.getElementById('item-categoria').value
-  };
+// ==========================================
+// EDITAR — Carrega dados no formulário
+// ==========================================
+async function editarItem(id) {
+  const data = document.getElementById('filtro-data-lista').value;
+  const res = await fetch(`/api/cardapio-dia?data=${data}`);
+  const itens = await res.json();
+  const item = itens.find(i => i.id === id);
+  
+  if (!item) return;
 
-  if (!dados.nome || !dados.preco) {
-    alert('Preencha nome e preço!');
+  // Preenche formulário
+  document.getElementById('item-id').value = item.id;
+  document.getElementById('item-data').value = item.data || data;
+  document.getElementById('item-nome').value = item.nome;
+  document.getElementById('item-desc').value = item.descricao || '';
+  document.getElementById('item-preco').value = item.preco;
+  document.getElementById('item-categoria').value = item.categoria;
+  document.getElementById('item-ordem').value = item.ordem || 0;
+  document.getElementById('item-disponivel').checked = item.disponivel;
+
+  // Muda para modo edição
+  document.getElementById('titulo-form').textContent = '✏️ Editar Item';
+  document.getElementById('btn-cancelar').style.display = 'inline-flex';
+  
+  // Rola até o formulário
+  document.getElementById('item-nome').focus();
+}
+
+// ==========================================
+// CANCELAR EDIÇÃO
+// ==========================================
+function cancelarEdicao() {
+  document.getElementById('item-id').value = '';
+  document.getElementById('item-nome').value = '';
+  document.getElementById('item-desc').value = '';
+  document.getElementById('item-preco').value = '';
+  document.getElementById('item-ordem').value = '0';
+  document.getElementById('item-disponivel').checked = true;
+  document.getElementById('titulo-form').textContent = 'Adicionar Novo Item';
+  document.getElementById('btn-cancelar').style.display = 'none';
+}
+
+// ==========================================
+// SALVAR — Criar ou Atualizar
+// ==========================================
+async function salvarItem() {
+  const id = document.getElementById('item-id').value;
+  const nome = document.getElementById('item-nome').value.trim();
+  const preco = parseFloat(document.getElementById('item-preco').value);
+  
+  if (!nome || !preco) {
+    alert('⚠️ Preencha o Nome e o Preço!');
     return;
   }
+
+  const dados = {
+    data: document.getElementById('item-data').value,
+    nome: nome,
+    descricao: document.getElementById('item-desc').value.trim(),
+    preco: preco,
+    categoria: document.getElementById('item-categoria').value,
+    ordem: parseInt(document.getElementById('item-ordem').value) || 0,
+    disponivel: document.getElementById('item-disponivel').checked
+  };
 
   const res = await fetch('/api/cardapio-dia/salvar', {
     method: 'POST',
@@ -127,18 +214,43 @@ async function salvarItem() {
   });
 
   const ret = await res.json();
+  
   if (ret.sucesso) {
-    alert('✅ Salvo!');
-    document.getElementById('item-nome').value = '';
-    document.getElementById('item-desc').value = '';
-    document.getElementById('item-preco').value = '';
+    alert(id ? '✅ Item atualizado!' : '✅ Item adicionado!');
+    cancelarEdicao();
+    // Sincroniza filtro com data do item
+    document.getElementById('filtro-data-lista').value = dados.data;
     carregarItens();
   } else {
-    alert('Erro: ' + ret.erro);
+    alert('❌ Erro: ' + (ret.erro || 'Verifique os dados'));
   }
 }
 
-document.getElementById('item-data').addEventListener('change', carregarItens);
+// ==========================================
+// EXCLUIR
+// ==========================================
+async function excluirItem(id, nome) {
+  if (!confirm(`🗑️ Tem certeza que deseja excluir:\n"${nome}"\n\nEsta ação não pode ser desfeita!`)) {
+    return;
+  }
+
+  const res = await fetch('/api/cardapio-dia/excluir', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id: id })
+  });
+
+  const ret = await res.json();
+  
+  if (ret.sucesso) {
+    alert('✅ Item excluído!');
+    carregarItens();
+  } else {
+    alert('❌ Erro ao excluir: ' + (ret.erro || 'Tente novamente'));
+  }
+}
+
+// Inicializar
 carregarItens();
 </script>
 </body>
