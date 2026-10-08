@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const { Pool } = require('pg');
 const axios = require('axios');
-const bot = require('./bot.js'); // ✅ BOT SEPARADO — NÃO MEXE!
+const bot = require('./bot.js'); // âœ… BOT SEPARADO â€” NÃƒO MEXE!
 
 const app = express();
 app.use(express.json());
@@ -19,48 +19,55 @@ const pool = new Pool({
 async function testarBanco() {
   try {
     const c = await pool.connect();
-    console.log('✅ Banco CONECTADO!');
+    console.log('âœ… Banco CONECTADO!');
     c.release();
   } catch(e) {
-    console.error('❌ Erro Banco:', e.message);
+    console.error('âŒ Erro Banco:', e.message);
   }
 }
 testarBanco();
 
 // ==========================================
-// EVOLUTION / BOT — INTACTO!
+// EVOLUTION / BOT â€” INTACTO!
 // ==========================================
 const EVO_URL = process.env.EVO_URL?.replace(/\/$/, '');
 const EVO_KEY = process.env.EVO_KEY;
 const INSTANCE = process.env.EVO_INSTANCE || 'marmitaria';
 
-console.log('🤖 Bot carregado | Instância:', INSTANCE);
+console.log('ðŸ¤– Bot carregado | InstÃ¢ncia:', INSTANCE);
 
 async function enviarMensagem(numero, texto) {
   if (!EVO_URL || !EVO_KEY || !numero) return;
   try {
-    const url = `${EVO_URL}/message/${INSTANCE}/sendText`;
+    const url = `${EVO_URL}/message/sendText/${INSTANCE}`;
     await axios.post(url, { number: numero, text: texto }, { headers: { 'apikey': EVO_KEY } });
-    console.log('✅ Enviado para:', numero);
+    console.log('âœ… Enviado para:', numero);
   } catch(e) {
-    console.error('❌ Erro envio:', e.response?.status, e.response?.data || e.message);
+    console.error('âŒ Erro envio:', e.response?.status, e.response?.data || e.message);
   }
 }
 
-// Webhook — DOIS caminhos para garantir
+// Webhook â€” DOIS caminhos para garantir
 async function processarWebhook(corpo) {
   const { event, data } = corpo;
-  console.log('📩 Evento:', event);
+  console.log('ðŸ“© Evento:', event);
   if (event !== 'messages.upsert') return;
-  
+
   const mensagem = data?.messages?.[0];
-  if (!mensagem || mensagem.fromMe) return;
-  
-  const texto = (mensagem.conversation || mensagem.text || '');
-  const numero = mensagem.key?.remoteJid?.replace('@c.us', '').replace(/\D/g, '');
-  
-  console.log(`💬 ${numero}: ${texto}`);
-  const resposta = await bot.responder(numero, texto); // ✅ CHAMA bot.js
+  if (!mensagem || mensagem.key?.fromMe) return;
+  if (mensagem.key?.remoteJid?.includes('@g.us')) return; // ignora grupos
+  if (mensagem.key?.remoteJid?.includes('status@broadcast')) return; // ignora status
+
+  const texto = (
+    mensagem.message?.conversation ||
+    mensagem.message?.extendedTextMessage?.text ||
+    mensagem.message?.imageMessage?.caption ||
+    (mensagem.message?.audioMessage ? '[audio]' : '')
+  ) || '';
+  const numero = mensagem.key?.remoteJid?.replace(/\D/g, '');
+
+  console.log(`ðŸ’¬ ${numero}: ${texto}`);
+  const resposta = await bot.responder(numero, texto);
   if (resposta && numero) await enviarMensagem(numero, resposta);
 }
 
@@ -68,7 +75,7 @@ app.post('/webhook', (req, res) => { res.sendStatus(200); processarWebhook(req.b
 app.post('/message/marmitaria/webhook', (req, res) => { res.sendStatus(200); processarWebhook(req.body); });
 
 // ==========================================
-// 🔧 PRODUTOS — CORRIGIDO (DOIS FORMATOS)
+// ðŸ”§ PRODUTOS â€” CORRIGIDO (DOIS FORMATOS)
 // ==========================================
 app.get('/api/produtos', async (req, res) => {
   try {
@@ -87,7 +94,7 @@ app.get('/api/produtos', async (req, res) => {
 });
 
 // ==========================================
-// 🔧 CAIXA — CORRIGIDO COM company_id
+// ðŸ”§ CAIXA â€” CORRIGIDO COM company_id
 // ==========================================
 app.get('/api/resumo', async (req, res) => {
   try {
@@ -113,7 +120,7 @@ app.post('/api/caixa/abrir', async (req, res) => {
       `SELECT id FROM cash_registers WHERE status = 'aberto' AND company_id = $1`,
       [company_id]
     );
-    if (aberto.rows.length > 0) return res.status(400).json({ erro: 'Já existe um caixa aberto!' });
+    if (aberto.rows.length > 0) return res.status(400).json({ erro: 'JÃ¡ existe um caixa aberto!' });
 
     const result = await pool.query(`
       INSERT INTO cash_registers (company_id, operator_name, opening_balance, status, opened_at)
@@ -191,10 +198,10 @@ app.post('/api/pedidos/manual', async (req, res) => {
   }
 });
 // ==========================================
-// 📅 CARDÁPIO DO DIA
+// ðŸ“… CARDÃPIO DO DIA
 // ==========================================
 
-// Carregar cardápio do dia
+// Carregar cardÃ¡pio do dia
 app.get('/api/cardapio-dia', async (req, res) => {
   try {
     const { data } = req.query;
@@ -211,17 +218,17 @@ app.get('/api/cardapio-dia', async (req, res) => {
 
     res.json(result.rows);
   } catch (e) {
-    console.error('Cardápio dia:', e);
+    console.error('CardÃ¡pio dia:', e);
     res.status(500).json({ erro: e.message });
   }
 });
 
-// Salvar/atualizar item do cardápio
+// Salvar/atualizar item do cardÃ¡pio
 app.post('/api/cardapio-dia/salvar', async (req, res) => {
   try {
     const { data, nome, descricao, preco, categoria, disponivel, ordem } = req.body;
     const empresa = await pool.query(`SELECT id FROM companies LIMIT 1`);
-    if (empresa.rows.length === 0) return res.status(400).json({ erro: 'Empresa não cadastrada' });
+    if (empresa.rows.length === 0) return res.status(400).json({ erro: 'Empresa nÃ£o cadastrada' });
 
     const result = await pool.query(`
       INSERT INTO daily_menu (company_id, data, nome, descricao, preco, categoria, disponivel, ordem)
@@ -239,7 +246,7 @@ app.post('/api/cardapio-dia/salvar', async (req, res) => {
 
     res.json({ sucesso: true, item: result.rows[0] });
   } catch (e) {
-    console.error('Salvar cardápio:', e);
+    console.error('Salvar cardÃ¡pio:', e);
     res.status(500).json({ erro: e.message });
   }
 });
@@ -260,13 +267,13 @@ app.get('/api/produtos/lista', async (req, res) => {
   }
 });
 // ==========================================
-// 🗑️ EXCLUIR item do cardápio
+// ðŸ—‘ï¸ EXCLUIR item do cardÃ¡pio
 // ==========================================
 app.post('/api/cardapio-dia/excluir', async (req, res) => {
   try {
     const { id } = req.body;
     const empresa = await pool.query(`SELECT id FROM companies LIMIT 1`);
-    if (empresa.rows.length === 0) return res.status(400).json({ erro: 'Empresa não cadastrada' });
+    if (empresa.rows.length === 0) return res.status(400).json({ erro: 'Empresa nÃ£o cadastrada' });
 
     const result = await pool.query(`
       DELETE FROM daily_menu
@@ -275,27 +282,27 @@ app.post('/api/cardapio-dia/excluir', async (req, res) => {
     `, [id, empresa.rows[0].id]);
 
     if (result.rowCount === 0) {
-      return res.status(404).json({ sucesso: false, erro: 'Item não encontrado' });
+      return res.status(404).json({ sucesso: false, erro: 'Item nÃ£o encontrado' });
     }
 
     res.json({ sucesso: true });
   } catch (e) {
-    console.error('Excluir cardápio:', e);
+    console.error('Excluir cardÃ¡pio:', e);
     res.status(500).json({ sucesso: false, erro: e.message });
   }
 });
 // ==========================================
-// PAINEL ADM — pede senha
+// PAINEL ADM â€” pede senha
 // ==========================================
 function abrirAdm() {
-  const senha = prompt('🔒 Digite a senha ADM:');
-  const SENHA_ADM = 'admin123'; // ← ALTERE A SENHA AQUI SE QUISER
+  const senha = prompt('ðŸ”’ Digite a senha ADM:');
+  const SENHA_ADM = 'admin123'; // â† ALTERE A SENHA AQUI SE QUISER
   
   if (senha === SENHA_ADM) {
     sessionStorage.setItem('adm_liberado', 'sim');
     window.location.href = '../dashboard.html';
   } else if (senha !== null) {
-    alert('❌ Senha incorreta!');
+    alert('âŒ Senha incorreta!');
   }
 }
 // ==========================================
@@ -303,6 +310,6 @@ function abrirAdm() {
 // ==========================================
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor na porta ${PORT}`);
-  console.log(`🔗 Webhook: /webhook e /message/marmitaria/webhook`);
+  console.log(`ðŸš€ Servidor na porta ${PORT}`);
+  console.log(`ðŸ”— Webhook: /webhook e /message/marmitaria/webhook`);
 });
