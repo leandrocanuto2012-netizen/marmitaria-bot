@@ -190,7 +190,75 @@ app.post('/api/pedidos/manual', async (req, res) => {
     client.release();
   }
 });
+// ==========================================
+// 📅 CARDÁPIO DO DIA
+// ==========================================
 
+// Carregar cardápio do dia
+app.get('/api/cardapio-dia', async (req, res) => {
+  try {
+    const { data } = req.query;
+    const dataAlvo = data || new Date().toISOString().split('T')[0];
+    const empresa = await pool.query(`SELECT id FROM companies LIMIT 1`);
+    if (empresa.rows.length === 0) return res.json([]);
+
+    const result = await pool.query(`
+      SELECT id, nome, descricao, preco, categoria, disponivel, ordem
+      FROM daily_menu
+      WHERE company_id = $1 AND data = $2 AND disponivel = true
+      ORDER BY categoria, ordem, nome
+    `, [empresa.rows[0].id, dataAlvo]);
+
+    res.json(result.rows);
+  } catch (e) {
+    console.error('Cardápio dia:', e);
+    res.status(500).json({ erro: e.message });
+  }
+});
+
+// Salvar/atualizar item do cardápio
+app.post('/api/cardapio-dia/salvar', async (req, res) => {
+  try {
+    const { data, nome, descricao, preco, categoria, disponivel, ordem } = req.body;
+    const empresa = await pool.query(`SELECT id FROM companies LIMIT 1`);
+    if (empresa.rows.length === 0) return res.status(400).json({ erro: 'Empresa não cadastrada' });
+
+    const result = await pool.query(`
+      INSERT INTO daily_menu (company_id, data, nome, descricao, preco, categoria, disponivel, ordem)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      ON CONFLICT (company_id, data, nome) DO UPDATE SET
+        descricao = EXCLUDED.descricao,
+        preco = EXCLUDED.preco,
+        categoria = EXCLUDED.categoria,
+        disponivel = EXCLUDED.disponivel,
+        ordem = EXCLUDED.ordem
+      RETURNING *
+    `, [empresa.rows[0].id, data || new Date().toISOString().split('T')[0],
+        nome, descricao || '', preco, categoria || 'Prato Principal',
+        disponivel !== false, ordem || 0]);
+
+    res.json({ sucesso: true, item: result.rows[0] });
+  } catch (e) {
+    console.error('Salvar cardápio:', e);
+    res.status(500).json({ erro: e.message });
+  }
+});
+
+// Listar produtos para dropdown do PDV
+app.get('/api/produtos/lista', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT name AS nome, price AS preco, stock AS estoque
+      FROM products
+      WHERE stock > 0
+      ORDER BY name
+    `);
+    res.json(result.rows);
+  } catch (e) {
+    console.error('Lista produtos:', e);
+    res.status(500).json({ erro: e.message });
+  }
+});
 // ==========================================
 // INICIAR
 // ==========================================
