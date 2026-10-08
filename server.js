@@ -285,6 +285,20 @@ app.post('/api/cardapio-dia/excluir', async (req, res) => {
   }
 });
 // ==========================================
+// PAINEL ADM — pede senha
+// ==========================================
+function abrirAdm() {
+  const senha = prompt('🔒 Digite a senha ADM:');
+  const SENHA_ADM = 'admin123'; // ← ALTERE A SENHA AQUI SE QUISER
+  
+  if (senha === SENHA_ADM) {
+    sessionStorage.setItem('adm_liberado', 'sim');
+    window.location.href = '../dashboard.html';
+  } else if (senha !== null) {
+    alert('❌ Senha incorreta!');
+  }
+}
+// ==========================================
 // INICIAR
 // ==========================================
 const PORT = process.env.PORT || 8080;
