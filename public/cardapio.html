@@ -3,98 +3,110 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Cardápio — Marmitária</title>
+  <title>Cardápio — Marmitaria</title>
   <style>
-    * {margin: 0; padding: 0; font-family: system-ui, sans-serif; box-sizing: border-box;}
-    body {background: #fff9f0; padding: 20px; max-width: 900px; margin: 0 auto;}
-    .voltar {display: inline-block; margin-bottom: 20px; color: #e67e22; text-decoration: none; font-weight: 600;}
-    header {text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #f0e6d6;}
-    h1 {color: #d35400; font-size: 2em; display: flex; align-items: center; justify-content: center; gap: 10px;}
-    .subtitulo {color: #7f8c8d; margin-top: 8px;}
-    .categoria {margin-bottom: 35px;}
-    .categoria-titulo {color: #c0392b; font-size: 1.3em; padding: 10px 15px; background: #fff; border-left: 4px solid #e67e22; border-radius: 8px; margin-bottom: 15px;}
-    .item {background: #fff; padding: 18px; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.06); display: flex; justify-content: space-between; align-items: flex-start;}
-    .item-nome {font-weight: bold; font-size: 1.1em; color: #2d3436; margin-bottom: 5px;}
-    .item-desc {color: #636e72; font-size: 0.9em; margin-bottom: 8px;}
-    .item-preco {font-weight: bold; color: #27ae60; font-size: 1.2em; white-space: nowrap;}
-    .sem-estoque {opacity: 0.5;}
-    .sem-estoque .item-preco {color: #bdc3c7;}
-    .aviso {text-align: center; padding: 40px 20px; color: #e67e22;}
-    footer {text-align: center; margin-top: 40px; padding-top: 20px; border-top: 1px solid #f0e6d6; color: #7f8c8d; font-size: 0.9em;}
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+    body { background: #f0f2f5; min-height: 100vh; }
+    .cabecalho { background: #075E54; color: white; padding: 14px 20px; position: sticky; top: 0; z-index: 100; }
+    .cabecalho h1 { font-size: 17px; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+    .cabecalho p { font-size: 13px; opacity: 0.85; margin-top: 2px; }
+    .data-seletor { background: white; padding: 12px 20px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
+    .data-seletor input { padding: 6px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+    .container { max-width: 600px; margin: 0 auto; padding: 15px; padding-bottom: 80px; }
+    .categoria { margin-bottom: 20px; }
+    .categoria-titulo { font-size: 14px; font-weight: 600; color: #075E54; margin: 10px 0; padding-bottom: 4px; border-bottom: 2px solid #25D366; display: inline-block; }
+    .item { background: white; border-radius: 12px; padding: 14px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); transition: transform 0.2s; }
+    .item:hover { transform: translateY(-2px); }
+    .item-nome { font-weight: 600; font-size: 15px; color: #111b21; margin-bottom: 4px; }
+    .item-desc { font-size: 13px; color: #667781; margin-bottom: 8px; line-height: 1.4; }
+    .item-rodape { display: flex; justify-content: space-between; align-items: center; }
+    .item-preco { font-weight: 700; font-size: 16px; color: #075E54; }
+    .indisponivel { opacity: 0.5; text-decoration: line-through; }
+    .rodape-fixo { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #e5e7eb; padding: 10px 20px; text-align: center; }
+    .btn-editar { background: #25D366; color: white; border: none; padding: 8px 16px; border-radius: 20px; font-weight: 600; cursor: pointer; font-size: 14px; }
+    .btn-editar:hover { background: #1fb85c; }
+    .sem-itens { text-align: center; padding: 40px 20px; color: #667781; }
   </style>
 </head>
 <body>
-  <a href="index.html" class="voltar">← Início</a>
 
-  <header>
-    <h1>🍽️ Cardápio</h1>
-    <p class="subtitulo">Sabor caseiro feito com carinho ❤️</p>
-  </header>
-
-  <div id="conteudo">
-    <div style="text-align:center; padding:40px;">Carregando...</div>
+  <div class="cabecalho">
+    <h1>🍽️ Cardápio do Dia</h1>
+    <p>Sabor caseiro feito com carinho ❤️</p>
   </div>
 
-  <footer>
-    <p>📍 Rua Exemplo, 123 — Curitiba/PR</p>
-    <p>📞 (41) 99999-9999</p>
-    <p>🕒 Segunda a Sábado: 11h às 14h | 18h às 21h</p>
-  </footer>
+  <div class="data-seletor">
+    <span id="data-atual"></span>
+    <input type="date" id="filtro-data">
+  </div>
 
-  <script>
-    async function carregarCardapio() {
-      try {
-        const res = await fetch('/api/produtos');
-        
-        if (!res.ok) throw new Error('Servidor não respondeu');
-        
-        const produtos = await res.json();
-        const conteudo = document.getElementById('conteudo');
+  <div class="container" id="lista-cardapio">
+    <div class="sem-itens">Carregando...</div>
+  </div>
 
-        if (!produtos || produtos.length === 0) {
-          conteudo.innerHTML = `
-            <div class="aviso">
-              <h3>📋 Cardápio em atualização</h3>
-              <p>Volte em instantes!</p>
-            </div>
-          `;
-          return;
-        }
+  <div class="rodape-fixo">
+    <button class="btn-editar" onclick="window.location.href='admin-cardapio.html'">⚙️ Editar Cardápio</button>
+  </div>
 
-        // Agrupa por categoria (se tiver) ou mostra tudo
-        const html = produtos.map(p => {
-          const semEstoque = p.stock <= 0;
-          return `
-            <div class="item ${semEstoque ? 'sem-estoque' : ''}">
-              <div>
-                <div class="item-nome">${p.name}</div>
-                ${p.description ? `<div class="item-desc">${p.description}</div>` : ''}
-                ${semEstoque ? '<small style="color:#e74c3c;">❌ Indisponível</small>' : `<small style="color:#27ae60;">✅ Disponível (${p.stock} unidades)</small>`}
-              </div>
-              <div class="item-preco">R$ ${parseFloat(p.price).toFixed(2)}</div>
-            </div>
-          `;
-        }).join('');
+<script>
+const filtroData = document.getElementById('filtro-data');
+const lista = document.getElementById('lista-cardapio');
+const dataAtualEl = document.getElementById('data-atual');
 
-        conteudo.innerHTML = `
-          <div class="categoria">
-            <h2 class="categoria-titulo">🍛 Pratos Principais</h2>
-            ${html}
-          </div>
-        `;
+// Data de hoje formatada
+const hoje = new Date();
+const dataFormatada = hoje.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+dataAtualEl.textContent = dataFormatada;
+filtroData.valueAsDate = hoje;
 
-      } catch (erro) {
-        document.getElementById('conteudo').innerHTML = `
-          <div style="text-align:center; padding:40px; color:#e74c3c;">
-            <h3>⚠️ Não foi possível carregar o cardápio</h3>
-            <p>${erro.message}</p>
-            <button onclick="location.reload()" style="margin-top:15px; padding:10px 20px; background:#e67e22; color:white; border:none; border-radius:8px; font-size:16px;">🔄 Tentar Novamente</button>
-          </div>
-        `;
-      }
+async function carregarCardapio() {
+  lista.innerHTML = '<div class="sem-itens">Carregando...</div>';
+  const data = filtroData.value;
+  
+  try {
+    const res = await fetch(`/api/cardapio-dia?data=${data}`);
+    const itens = await res.json();
+    
+    if (!itens.length) {
+      lista.innerHTML = '<div class="sem-itens">📭 Nenhum item cadastrado para esta data</div>';
+      return;
     }
 
-    carregarCardapio();
-  </script>
+    // Agrupar por categoria
+    const agrupado = {};
+    itens.forEach(i => {
+      if (!agrupado[i.categoria]) agrupado[i.categoria] = [];
+      agrupado[i.categoria].push(i);
+    });
+
+    lista.innerHTML = '';
+    for (const [categoria, itensCat] of Object.entries(agrupado)) {
+      const divCat = document.createElement('div');
+      divCat.className = 'categoria';
+      divCat.innerHTML = `<h3 class="categoria-titulo">${categoria}</h3>`;
+      
+      itensCat.forEach(item => {
+        divCat.innerHTML += `
+          <div class="item ${!item.disponivel ? 'indisponivel' : ''}">
+            <div class="item-nome">${item.nome}</div>
+            ${item.descricao ? `<div class="item-desc">${item.descricao}</div>` : ''}
+            <div class="item-rodape">
+              <span class="item-preco">R$ ${Number(item.preco).toFixed(2)}</span>
+              ${!item.disponivel ? '<span style="color:red;font-size:12px">Indisponível</span>' : ''}
+            </div>
+          </div>
+        `;
+      });
+      lista.appendChild(divCat);
+    }
+  } catch (e) {
+    lista.innerHTML = `<div class="sem-itens">❌ Erro ao carregar</div>`;
+    console.error(e);
+  }
+}
+
+filtroData.addEventListener('change', carregarCardapio);
+carregarCardapio();
+</script>
 </body>
 </html>
