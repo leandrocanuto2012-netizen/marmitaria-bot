@@ -112,7 +112,8 @@ async function entrar() {
       } else {
         localStorage.removeItem('marmitaria_usuario');
       }
-      window.location.href = 'dashboard.html';
+      // ✅ DIRETO PARA O CAIXA — caminho correto!
+      window.location.href = 'pdv/caixa.html';
     } else {
       alert('❌ Usuário ou senha incorretos!');
       document.getElementById('form-login').style.display = 'block';
@@ -124,7 +125,8 @@ async function entrar() {
     if (document.getElementById('lembrar').checked) {
       localStorage.setItem('marmitaria_usuario', usuario);
     }
-    window.location.href = 'dashboard.html';
+    // ✅ Fallback também direto pro Caixa
+    window.location.href = 'pdv/caixa.html';
   }
 }
 
