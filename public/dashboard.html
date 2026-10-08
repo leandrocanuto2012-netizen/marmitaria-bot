@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel ADM — Marmitaria</title>
+  <link rel="stylesheet" href="estilo-padrao.css">
+</head>
+<body>
+
+  <header class="cabecalho">
+    <h1>⚙️ Painel Administrativo</h1>
+    <p>Acesso restrito — Gerencie tudo aqui</p>
+  </header>
+
+  <main class="container">
+
+    <div class="cartao">
+      <h2>Módulos do Sistema</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:15px;">
+
+        <a href="pdv/caixa.html" style="text-decoration:none;">
+          <div class="cartao" style="margin:0;text-align:center;cursor:pointer;">
+            <div style="font-size:28px;">💰</div>
+            <div style="font-weight:600;margin-top:8px;">Caixa / PDV</div>
+            <div style="font-size:12px;color:var(--wa-texto-sec);">Vendas e movimento</div>
+          </div>
+        </a>
+
+        <a href="cardapio.html" style="text-decoration:none;">
+          <div class="cartao" style="margin:0;text-align:center;cursor:pointer;">
+            <div style="font-size:28px;">📋</div>
+            <div style="font-weight:600;margin-top:8px;">Cardápio do Dia</div>
+            <div style="font-size:12px;color:var(--wa-texto-sec);">Visualização clientes</div>
+          </div>
+        </a>
+
+        <a href="admin-cardapio.html" style="text-decoration:none;">
+          <div class="cartao" style="margin:0;text-align:center;cursor:pointer;">
+            <div style="font-size:28px;">✏️</div>
+            <div style="font-weight:600;margin-top:8px;">Editar Cardápio</div>
+            <div style="font-size:12px;color:var(--wa-texto-sec);">Adicionar / editar / excluir</div>
+          </div>
+        </a>
+
+        <a href="calculadora-insumos.html" style="text-decoration:none;">
+          <div class="cartao" style="margin:0;text-align:center;cursor:pointer;">
+            <div style="font-size:28px;">🧮</div>
+            <div style="font-weight:600;margin-top:8px;">Cálculo de Custos</div>
+            <div style="font-size:12px;color:var(--wa-texto-sec);">Insumos e preços</div>
+          </div>
+        </a>
+
+      </div>
+    </div>
+
+    <div class="cartao" style="margin-top:20px;">
+      <h2>Resumo Rápido</h2>
+      <div id="resumo-dados">
+        <p style="color:var(--wa-texto-sec);">Carregando...</p>
+      </div>
+    </div>
+
+    <button class="botao botao--perigo" style="margin-top:10px;" onclick="sairAdm()">🔒 Bloquear Painel ADM</button>
+    <a href="pdv/caixa.html" class="voltar" style="margin-top:20px;display:block;">← Voltar para o Caixa</a>
+  </main>
+
+<script>
+// SENHA DO ADM — altere aqui se quiser
+const SENHA_ADM = 'admin123';
+
+document.addEventListener('DOMContentLoaded', async () => {
+  // Verifica se está autorizado
+  if (sessionStorage.getItem('adm_liberado') !== 'sim') {
+    const senha = prompt('🔒 Digite a senha ADM:');
+    if (senha !== SENHA_ADM) {
+      alert('❌ Senha incorreta!');
+      window.location.href = 'pdv/caixa.html';
+      return;
+    }
+    sessionStorage.setItem('adm_liberado', 'sim');
+  }
+
+  // Carrega resumo
+  try {
+    const res = await fetch('/api/resumo');
+    const dados = await res.json();
+    const statusCaixa = dados.caixaAberto 
+      ? `✅ Aberto — ${dados.caixaAberto.operator_name || dados.caixaAberto.operador}` 
+      : '🔴 Fechado';
+    
+    document.getElementById('resumo-dados').innerHTML = `
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--wa-borda);">
+        <span>Status do Caixa</span>
+        <span class="status ${dados.caixaAberto ? 'status--aberto' : 'status--erro'}">${statusCaixa}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;">
+        <span>Usuário logado</span>
+        <strong>${localStorage.getItem('marmitaria_nome') || 'Operador'}</strong>
+      </div>
+    `;
+  } catch {
+    document.getElementById('resumo-dados').innerHTML = `
+      <p style="color:var(--wa-texto-sec);text-align:center;">✅ Sistema conectado</p>
+    `;
+  }
+});
+
+function sairAdm() {
+  sessionStorage.removeItem('adm_liberado');
+  window.location.href = 'pdv/caixa.html';
+}
+</script>
+
+</body>
+</html>
