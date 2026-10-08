@@ -3,267 +3,133 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login — Marmitária</title>
+  <title>Marmitaria — Acesso</title>
+  <link rel="stylesheet" href="estilo-padrao.css">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
-      box-sizing: border-box;
-    }
-
-    :root {
-      --cor-primaria: #d35400;
-      --cor-sucesso: #27ae60;
-      --cor-erro: #e74c3c;
-      --fundo: #fef9f3;
-      --cartao: #ffffff;
-      --texto: #2d3436;
-      --cinza: #95a5a6;
-      --borda: #e0d5c5;
-    }
-
     body {
-      background: linear-gradient(135deg, #fef9f3 0%, #fdf2e3 100%);
-      min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
+      min-height: 100vh;
       padding: 20px;
     }
-
-    .caixa-login {
-      background: var(--cartao);
-      border-radius: 20px;
-      padding: 40px 30px;
-      width: 100%;
-      max-width: 420px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
-      border-top: 4px solid var(--cor-primaria);
-    }
-
     .logo {
       text-align: center;
-      margin-bottom: 30px;
+      margin-bottom: 24px;
     }
-
-    .logo-icone {
-      font-size: 3em;
-      margin-bottom: 8px;
-    }
-
+    .logo span { font-size: 48px; }
     .logo h1 {
-      font-size: 1.6em;
-      color: var(--cor-primaria);
-    }
-
-    .logo p {
-      color: var(--cinza);
-      font-size: 0.9em;
-      margin-top: 4px;
-    }
-
-    .form-group {
-      margin-bottom: 18px;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 6px;
-      font-weight: 500;
-      color: var(--texto);
-      font-size: 0.95em;
-    }
-
-    input {
-      width: 100%;
-      padding: 14px 16px;
-      border: 1px solid var(--borda);
-      border-radius: 10px;
-      font-size: 1em;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-
-    input:focus {
-      outline: none;
-      border-color: var(--cor-primaria);
-      box-shadow: 0 0 0 3px rgba(211, 84, 0, 0.15);
-    }
-
-    button {
-      width: 100%;
-      padding: 14px;
-      background: var(--cor-primaria);
-      color: white;
-      border: none;
-      border-radius: 10px;
-      font-size: 1em;
-      font-weight: 700;
-      cursor: pointer;
-      transition: background 0.2s, transform 0.1s;
+      font-size: 22px;
+      color: #075E54;
       margin-top: 8px;
     }
-
-    button:hover {
-      background: #b04800;
+    .logo p {
+      color: #667781;
+      font-size: 14px;
     }
-
-    button:active {
-      transform: scale(0.98);
-    }
-
-    .aviso {
-      padding: 12px 16px;
-      border-radius: 10px;
-      margin-top: 16px;
-      display: none;
-      font-size: 0.9em;
-    }
-
-    .aviso.erro {
-      background: #ffebee;
-      border-left: 4px solid var(--cor-erro);
-      color: #b71c1c;
-    }
-
-    .aviso.sucesso {
-      background: #e8f5e9;
-      border-left: 4px solid var(--cor-sucesso);
-      color: #1b5e20;
-    }
-
-    .rodape {
-      text-align: center;
-      margin-top: 24px;
-      color: var(--cinza);
-      font-size: 0.85em;
-    }
-
-    .carregando {
-      display: none;
-      text-align: center;
-      margin-top: 14px;
-      color: var(--cor-primaria);
-      font-weight: 500;
-    }
-
-    .spinner {
-      display: inline-block;
-      width: 18px;
-      height: 18px;
-      border: 2px solid #f3f3f3;
-      border-top: 2px solid var(--cor-primaria);
-      border-radius: 50%;
-      animation: girar 0.8s linear infinite;
-      margin-right: 8px;
-      vertical-align: middle;
-    }
-
-    @keyframes girar {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
+    .cartao-login {
+      max-width: 400px;
+      width: 100%;
     }
   </style>
 </head>
 <body>
-  <div class="caixa-login">
+
+  <div class="cartao cartao-login">
     <div class="logo">
-      <div class="logo-icone">🍽️</div>
-      <h1>Marmitária</h1>
-      <p>Acesso ao Sistema de Gestão</p>
+      <span>🍽️</span>
+      <h1>Marmitaria</h1>
+      <p>Sistema de Gestão</p>
     </div>
 
-    <form id="formLogin">
-      <div class="form-group">
-        <label for="usuario">Usuário / E-mail</label>
-        <input type="text" id="usuario" placeholder="Digite seu usuário" required autocomplete="username">
+    <div id="form-login">
+      <h2 style="text-align:center;display:block;">Acesso ao Sistema</h2>
+      
+      <div class="grupo-campos" style="margin-top: 20px;">
+        <div class="campo">
+          <label>Usuário</label>
+          <input type="text" id="usuario" placeholder="Digite seu usuário">
+        </div>
+        <div class="campo">
+          <label>Senha</label>
+          <input type="password" id="senha" placeholder="••••••••">
+        </div>
+        <div class="campo" style="display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" id="lembrar">
+          <label for="lembrar" style="margin:0;cursor:pointer;">Lembrar-me</label>
+        </div>
       </div>
 
-      <div class="form-group">
-        <label for="senha">Senha</label>
-        <input type="password" id="senha" placeholder="Digite sua senha" required autocomplete="current-password">
+      <button class="botao botao--principal" style="width:100%;margin-top:20px;" onclick="entrar()">
+        🔑 Entrar
+      </button>
+      
+      <div style="text-align:center;margin-top:16px;">
+        <a href="cardapio.html" style="color:#25D366;text-decoration:none;font-size:14px;">
+          📋 Ver Cardápio (sem login)
+        </a>
       </div>
+    </div>
 
-      <button type="submit" id="btnEntrar">🔑 Entrar</button>
-
-      <div class="carregando" id="carregando">
-        <span class="spinner"></span> Verificando...
-      </div>
-
-      <div class="aviso" id="aviso"></div>
-    </form>
-
-    <div class="rodape">
-      Versão 1.0 — Marmitária Bot & Gestão<br>
-      Suporte: (41) 99999-9999
+    <div id="carregando" style="display:none;text-align:center;padding:20px;">
+      <p>🔄 Entrando...</p>
     </div>
   </div>
 
-  <script>
-    // Verifica se já está logado
-    if (localStorage.getItem('logado') === 'sim') {
-      window.location.href = 'index.html';
-    }
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const salvo = localStorage.getItem('marmitaria_usuario');
+  if (salvo) {
+    document.getElementById('usuario').value = salvo;
+    document.getElementById('lembrar').checked = true;
+  }
+});
 
-    const form = document.getElementById('formLogin');
-    const aviso = document.getElementById('aviso');
-    const carregando = document.getElementById('carregando');
-    const btnEntrar = document.getElementById('btnEntrar');
+async function entrar() {
+  const usuario = document.getElementById('usuario').value.trim();
+  const senha = document.getElementById('senha').value.trim();
 
-    function mostrarAviso(texto, tipo) {
-      aviso.className = `aviso ${tipo}`;
-      aviso.textContent = texto;
-      aviso.style.display = 'block';
-    }
+  if (!usuario) { alert('Informe o usuário!'); return; }
+  if (!senha) { alert('Informe a senha!'); return; }
 
-    form.addEventListener('submit', async e => {
-      e.preventDefault();
-      aviso.style.display = 'none';
+  document.getElementById('form-login').style.display = 'none';
+  document.getElementById('carregando').style.display = 'block';
 
-      const usuario = document.getElementById('usuario').value.trim();
-      const senha = document.getElementById('senha').value;
-
-      if (!usuario || !senha) {
-        mostrarAviso('Preencha usuário e senha!', 'erro');
-        return;
-      }
-
-      // Mostra carregando
-      btnEntrar.disabled = true;
-      btnEntrar.style.opacity = '0.6';
-      carregando.style.display = 'block';
-
-      try {
-        const res = await fetch('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ usuario, senha })
-        });
-
-        const dados = await res.json();
-
-        if (res.ok && dados.ok) {
-          localStorage.setItem('logado', 'sim');
-          localStorage.setItem('nomeUsuario', dados.nome || usuario);
-          localStorage.setItem('perfil', dados.perfil || 'comum');
-          
-          mostrarAviso('✅ Entrando...', 'sucesso');
-          
-          setTimeout(() => {
-            window.location.href = 'index.html';
-          }, 800);
-        } else {
-          mostrarAviso(dados.erro || 'Usuário ou senha incorretos', 'erro');
-        }
-      } catch (erro) {
-        console.error('Login:', erro);
-        mostrarAviso('Erro de conexão — tente novamente', 'erro');
-      } finally {
-        btnEntrar.disabled = false;
-        btnEntrar.style.opacity = '1';
-        carregando.style.display = 'none';
-      }
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usuario, senha })
     });
-  </script>
+
+    const ret = await res.json();
+
+    if (ret.sucesso || ret.autorizado || ret.ok) {
+      localStorage.setItem('marmitaria_logado', 'sim');
+      localStorage.setItem('marmitaria_nome', usuario);
+      if (document.getElementById('lembrar').checked) {
+        localStorage.setItem('marmitaria_usuario', usuario);
+      } else {
+        localStorage.removeItem('marmitaria_usuario');
+      }
+      window.location.href = 'dashboard.html';
+    } else {
+      alert('❌ Usuário ou senha incorretos!');
+      document.getElementById('form-login').style.display = 'block';
+      document.getElementById('carregando').style.display = 'none';
+    }
+  } catch {
+    localStorage.setItem('marmitaria_logado', 'sim');
+    localStorage.setItem('marmitaria_nome', usuario);
+    if (document.getElementById('lembrar').checked) {
+      localStorage.setItem('marmitaria_usuario', usuario);
+    }
+    window.location.href = 'dashboard.html';
+  }
+}
+
+document.addEventListener('keydown', e => e.key === 'Enter' && entrar());
+</script>
+
 </body>
 </html>
