@@ -4,9 +4,9 @@ const pino = require('pino');
 const { default: makeWASocket, useMultiFileAuthState, DisconnectReason } = require('@whiskeysockets/baileys');
 
 // ===== CONFIGURA AQUI SUA LOJA =====
-const NOME_LOJA = process.env.NOME_LOJA || 'Marmitaria do Leandro';
-const DONO = process.env.DONO_NUMERO || '5511999999999';
-const PIX_CHAVE = process.env.PIX || 'seu-pix-aqui';
+const NOME_LOJA = process.env.NOME_LOJA || 'Marmitaria do BETINHAAA';
+const DONO = process.env.DONO_NUMERO || 'AQUIEO NUMERA DO CELULAR';
+const PIX_CHAVE = process.env.PIX || 'NUMERA DO DENERO';
 // ===================================
 
 const app = express();
