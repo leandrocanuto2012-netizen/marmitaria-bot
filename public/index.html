@@ -1,137 +1,110 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Marmitaria — Acesso</title>
-  <link rel="stylesheet" href="estilo-padrao.css">
-  <style>
-    body {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      padding: 20px;
-    }
-    .logo {
-      text-align: center;
-      margin-bottom: 24px;
-    }
-    .logo span { font-size: 48px; }
-    .logo h1 {
-      font-size: 22px;
-      color: #075E54;
-      margin-top: 8px;
-    }
-    .logo p {
-      color: #667781;
-      font-size: 14px;
-    }
-    .cartao-login {
-      max-width: 400px;
-      width: 100%;
-    }
-  </style>
-</head>
-<body>
+const express = require('express');
+const qrcode = require('qrcode');
+const qrcodeTerminal = require('qrcode-terminal');
+const { Client, LocalAuth } = require('whatsapp-web.js');
 
-  <div class="cartao cartao-login">
-    <div class="logo">
-      <span>🍽️</span>
-      <h1>Marmitaria</h1>
-      <p>Sistema de Gestão</p>
-    </div>
+// --- SERVIDOR WEB PRA RENDER NÃO DESLIGAR ---
+const app = express();
+let lastQR = null;
 
-    <div id="form-login">
-      <h2 style="text-align:center;display:block;">Acesso ao Sistema</h2>
-      
-      <div class="grupo-campos" style="margin-top: 20px;">
-        <div class="campo">
-          <label>Usuário</label>
-          <input type="text" id="usuario" placeholder="Digite seu usuário">
-        </div>
-        <div class="campo">
-          <label>Senha</label>
-          <input type="password" id="senha" placeholder="••••••••">
-        </div>
-        <div class="campo" style="display:flex;align-items:center;gap:8px;">
-          <input type="checkbox" id="lembrar">
-          <label for="lembrar" style="margin:0;cursor:pointer;">Lembrar-me</label>
-        </div>
-      </div>
+app.get('/', (req, res) => {
+  res.send('Bot Marmitaria ON! Acesse /qr para escanear');
+});
 
-      <button class="botao botao--principal" style="width:100%;margin-top:20px;" onclick="entrar()">
-        🔑 Entrar
-      </button>
-      
-      <div style="text-align:center;margin-top:16px;">
-        <a href="cardapio.html" style="color:#25D366;text-decoration:none;font-size:14px;">
-          📋 Ver Cardápio (sem login)
-        </a>
-      </div>
-    </div>
-
-    <div id="carregando" style="display:none;text-align:center;padding:20px;">
-      <p>🔄 Entrando...</p>
-    </div>
-  </div>
-
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const salvo = localStorage.getItem('marmitaria_usuario');
-  if (salvo) {
-    document.getElementById('usuario').value = salvo;
-    document.getElementById('lembrar').checked = true;
+app.get('/qr', async (req, res) => {
+  if (!lastQR) return res.send('QR ainda não gerado ou já conectado. Veja os Logs no Render.');
+  try {
+    const qrImage = await qrcode.toDataURL(lastQR);
+    res.send(`<h1>Escaneie no WhatsApp:</h1><img src="${qrImage}" width="300"/><br/><p>Atualize a página para novo QR</p>`);
+  } catch (e) {
+    res.send('Erro ao gerar QR');
   }
 });
 
-async function entrar() {
-  const usuario = document.getElementById('usuario').value.trim();
-  const senha = document.getElementById('senha').value.trim();
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log('Servidor web rodando na porta ' + PORT));
 
-  if (!usuario) { alert('Informe o usuário!'); return; }
-  if (!senha) { alert('Informe a senha!'); return; }
-
-  document.getElementById('form-login').style.display = 'none';
-  document.getElementById('carregando').style.display = 'block';
-
-  try {
-    const res = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ usuario, senha })
-    });
-
-    const ret = await res.json();
-
-    if (ret.sucesso || ret.autorizado || ret.ok) {
-      localStorage.setItem('marmitaria_logado', 'sim');
-      localStorage.setItem('marmitaria_nome', usuario);
-      if (document.getElementById('lembrar').checked) {
-        localStorage.setItem('marmitaria_usuario', usuario);
-      } else {
-        localStorage.removeItem('marmitaria_usuario');
-      }
-      // ✅ DIRETO PARA O CAIXA — caminho correto!
-      window.location.href = 'pdv/caixa.html';
-    } else {
-      alert('❌ Usuário ou senha incorretos!');
-      document.getElementById('form-login').style.display = 'block';
-      document.getElementById('carregando').style.display = 'none';
-    }
-  } catch {
-    localStorage.setItem('marmitaria_logado', 'sim');
-    localStorage.setItem('marmitaria_nome', usuario);
-    if (document.getElementById('lembrar').checked) {
-      localStorage.setItem('marmitaria_usuario', usuario);
-    }
-    // ✅ Fallback também direto pro Caixa
-    window.location.href = 'pdv/caixa.html';
+// --- BOT WHATSAPP ---
+const client = new Client({
+  authStrategy: new LocalAuth({ dataPath: './.wwebjs_auth' }),
+  puppeteer: {
+    headless: true,
+    executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--single-process', '--no-zygote']
   }
-}
+});
 
-document.addEventListener('keydown', e => e.key === 'Enter' && entrar());
-</script>
+client.on('qr', qr => {
+  console.log('QR GERADO, abra /qr para escanear');
+  qrcodeTerminal.generate(qr, { small: true });
+  lastQR = qr;
+});
 
-</body>
-</html>
+client.on('ready', () => {
+  console.log('Bot da Marmitaria ON!');
+  lastQR = null;
+});
+
+const pedidos = {};
+const DONO = (process.env.DONO_NUMERO || '5511999999999') + '@c.us'; // coloca seu numero no Render
+const CARDAPIO = `*🍱 MARMITARIA - CARDÁPIO*\nDigite o número:\n\n1 - Frango Grelhado R$18\n2 - Carne Assada R$20\n3 - Feijoada R$22\n4 - Strogonoff R$22\n\nDepois digite FINALIZAR`;
+
+client.on('message', async msg => {
+  if (msg.from === 'status@broadcast') return;
+  if (msg.from.includes('@g.us')) return;
+  console.log('CHEGOU:', msg.body);
+
+  const numero = msg.from;
+  const texto = msg.body.trim().toUpperCase();
+
+  if (['OI','OLA','MENU','CARDAPIO'].includes(texto)) {
+    pedidos[numero] = { itens: [], etapa: 'escolhendo' };
+    await msg.reply(`Olá! Bem-vindo(a)! 😊\n\n${CARDAPIO}`);
+    return;
+  }
+  if (!pedidos[numero]) {
+    await msg.reply('Digite OI para ver o cardápio 🍱');
+    return;
+  }
+
+  let pedido = pedidos[numero];
+
+  if (pedido.etapa === 'escolhendo') {
+    if (['1','2','3','4'].includes(texto)) {
+      const nomes = {'1':'Frango Grelhado 18','2':'Carne Assada 20','3':'Feijoada 22','4':'Strogonoff 22'};
+      const valores = {'1':18,'2':20,'3':22,'4':22};
+      pedido.itens.push({ nome: nomes[texto], valor: valores[texto] });
+      await msg.reply(`Adicionado: ${nomes[texto]} ✅\n\nDigite outro número ou FINALIZAR`);
+    } else if (texto === 'FINALIZAR') {
+      if (pedido.itens.length === 0) {
+        await msg.reply('Carrinho vazio. Escolha 1 a 4.');
+        return;
+      }
+      pedido.etapa = 'endereco';
+      await msg.reply('Agora manda seu ENDEREÇO completo, ou digite RETIRADA');
+    } else {
+      await msg.reply(CARDAPIO);
+    }
+    return;
+  }
+
+  if (pedido.etapa === 'endereco') {
+    pedido.endereco = msg.body;
+    pedido.etapa = 'pagamento';
+    await msg.reply('Endereço anotado! ✅\n\nPagamento?\n1 - PIX\n2 - Dinheiro\n3 - Cartão');
+    return;
+  }
+
+  if (pedido.etapa === 'pagamento') {
+    let total = pedido.itens.reduce((s,i) => s + i.valor, 0);
+    let lista = pedido.itens.map(i => `- ${i.nome}`).join('\n');
+    let pag = texto.includes('1') ? 'PIX' : texto.includes('2') ? 'Dinheiro' : 'Cartão';
+    let resumo = `*NOVO PEDIDO* 🛵\nCliente: ${numero}\n\n${lista}\nTotal: R$${total}\nEntrega: ${pedido.endereco}\nPagamento: ${pag}`;
+    await client.sendMessage(DONO, resumo);
+    await msg.reply(`Pedido FINALIZADO! 🎉\n\n${lista}\nTotal: R$${total}\n\nJá foi pra cozinha!`);
+    delete pedidos[numero];
+    return;
+  }
+});
+
+client.initialize();
