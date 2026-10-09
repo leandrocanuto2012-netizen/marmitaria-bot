@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const { Pool } = require('pg');
 const axios = require('axios');
-const bot = require('./bot.js'); // âœ… BOT SEPARADO â€” NÃƒO MEXE!
+const bot = require('./bot.js'); // âœ… BOT SEPARADO — NÃƒO MEXE!
 
 const app = express();
 app.use(express.json());
@@ -12,79 +12,79 @@ app.use(express.static('public'));
 // BANCO
 // ==========================================
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  string de conexão: process.env.DATABASE_URL,
+  ssl: { rejeitarNãoAutorizado: falso }
 });
 
-async function testarBanco() {
-  try {
+função assíncrona testarBanco() {
+  tentar {
     const c = await pool.connect();
-    console.log('âœ… Banco CONECTADO!');
+    console.log('âœ…Banco CONECTADO!');
     c.release();
   } catch(e) {
-    console.error('âŒ Erro Banco:', e.message);
+    console.error('â Œ Erro Banco:', e.message);
   }
 }
 testarBanco();
 
 // ==========================================
-// EVOLUTION / BOT â€” INTACTO!
+// EVOLUÇÃO / BOT — INTACTO!
 // ==========================================
 const EVO_URL = process.env.EVO_URL?.replace(/\/$/, '');
 const EVO_KEY = process.env.EVO_KEY;
 const INSTANCE = process.env.EVO_INSTANCE || 'marmitaria';
 
-console.log('ðŸ¤– Bot carregado | InstÃ¢ncia:', INSTANCE);
+console.log('ðŸ¤– Bot carregado | Instância:', INSTANCE);
 
-async function enviarMensagem(numero, texto) {
+função assíncrona enviarMensagem(numero, texto) {
   if (!EVO_URL || !EVO_KEY || !numero) return;
-  try {
+  tentar {
     const url = `${EVO_URL}/message/sendText/${INSTANCE}`;
     await axios.post(url, { number: numero, text: texto }, { headers: { 'apikey': EVO_KEY } });
     console.log('âœ… Enviado para:', numero);
   } catch(e) {
-    console.error('âŒ Erro envio:', e.response?.status, e.response?.data || e.message);
+    console.error('â Œ Erro envio:', e.response?.status, e.response?.data || e.message);
   }
 }
 
-// Webhook â€” DOIS caminhos para garantir
-async function processarWebhook(corpo) {
-  const { event, data } = corpo;
-  console.log('ðŸ“© Evento:', event);
-  if (event !== 'messages.upsert') return;
+// Webhook — DOIS caminhos para garantir
+função assíncrona Webhook(corpo) {
+  const { evento, dados } = corpo;
+  console.log('ðŸ“© Evento:', evento);
+  se (evento !== 'messages.upsert') retorne;
 
-  const mensagem = data?.messages?.[0];
+  const mensagem = dados?.mensagens?.[0];
   if (!mensagem || mensagem.key?.fromMe) return;
   if (mensagem.key?.remoteJid?.includes('@g.us')) return; // ignora grupos
-  if (mensagem.key?.remoteJid?.includes('status@broadcast')) return; // ignora status
+  if (mensagem.key?.remoteJid?.includes('status@broadcast')) return; // ignorar status
 
   const texto = (
-    mensagem.message?.conversation ||
+    mensagem.mensagem?.conversação ||
     mensagem.message?.extendedTextMessage?.text ||
     mensagem.message?.imageMessage?.caption ||
-    (mensagem.message?.audioMessage ? '[audio]' : '')
+    (mensagem.message?.audioMessage ? '[áudio]' : '')
   ) || '';
   const numero = mensagem.key?.remoteJid?.replace(/\D/g, '');
 
-  console.log(`ðŸ’¬ ${numero}: ${texto}`);
-  const resposta = await bot.responder(numero, texto);
-  if (resposta && numero) await enviarMensagem(numero, resposta);
+  console.log(`ðŸ'¬ ${numero}: ${texto}`);
+  const resposta = aguarda bot.responder(numero, texto);
+  if (resposta && número) aguardar enviarMensagem(numero, resposta);
 }
 
 app.post('/webhook', (req, res) => { res.sendStatus(200); processarWebhook(req.body); });
 app.post('/message/marmitaria/webhook', (req, res) => { res.sendStatus(200); processarWebhook(req.body); });
 
 // ==========================================
-// ðŸ”§ PRODUTOS â€” CORRIGIDO (DOIS FORMATOS)
+// ðŸ”§ PRODUTOS — CORRIGIDO (DOIS FORMATOS)
 // ==========================================
 app.get('/api/produtos', async (req, res) => {
-  try {
+  tentar {
     const result = await pool.query(`
-      SELECT 
-        name, name AS nome,
-        price, price AS preco,
-        stock, stock AS estoque
-      FROM products ORDER BY id
+      SELECIONAR
+        nome, nome COMO nome,
+        preço, preço AS preco,
+        estoque, estoque AS estoque
+      A partir de produtos, ORDEM POR ID
     `);
     res.json(result.rows);
   } catch (e) {
@@ -94,13 +94,13 @@ app.get('/api/produtos', async (req, res) => {
 });
 
 // ==========================================
-// ðŸ”§ CAIXA â€” CORRIGIDO COM company_id
+// ðŸ”§ CAIXA — CORRIGIDO COM id_da_empresa
 // ==========================================
 app.get('/api/resumo', async (req, res) => {
-  try {
+  tentar {
     const result = await pool.query(`
-      SELECT * FROM cash_registers 
-      WHERE status = 'aberto' ORDER BY opened_at DESC LIMIT 1
+      SELECIONE * DA FÓRMULA cash_registers
+      ONDE status = 'aberto' ORDENAR POR opened_at DESC LIMITAR 1
     `);
     res.json({ caixaAberto: result.rows[0] || null });
   } catch (e) {
@@ -110,22 +110,22 @@ app.get('/api/resumo', async (req, res) => {
 });
 
 app.post('/api/caixa/abrir', async (req, res) => {
-  try {
+  tentar {
     const { operador, saldo_inicial } = req.body;
     const empresa = await pool.query(`SELECT id FROM companies LIMIT 1`);
     if (empresa.rows.length === 0) return res.status(400).json({ erro: 'Nenhuma empresa cadastrada!' });
     const company_id = empresa.rows[0].id;
 
-    const aberto = await pool.query(
+    const aberto = aguarda pool.query(
       `SELECT id FROM cash_registers WHERE status = 'aberto' AND company_id = $1`,
-      [company_id]
+      [id_da_empresa]
     );
-    if (aberto.rows.length > 0) return res.status(400).json({ erro: 'JÃ¡ existe um caixa aberto!' });
+    if (aberto.rows.length > 0) return res.status(400).json({ erro: 'Já existe uma caixa aberta!' });
 
     const result = await pool.query(`
       INSERT INTO cash_registers (company_id, operator_name, opening_balance, status, opened_at)
-      VALUES ($1, $2, $3, 'aberto', NOW()) RETURNING *
-    `, [company_id, operador, saldo_inicial || 0]);
+      VALORES ($1, $2, $3, 'aberto', AGORA()) RETORNANDO *
+    `, [id_empresa, operador, saldo_inicial || 0]);
 
     res.json({ sucesso: true, caixa: result.rows[0] });
   } catch (e) {
@@ -135,14 +135,14 @@ app.post('/api/caixa/abrir', async (req, res) => {
 });
 
 app.post('/api/caixa/fechar', async (req, res) => {
-  try {
-    const { saldo_contado, saldo_sistema, diferenca } = req.body;
+  tentar {
+    const { saldo_contado, saldo_sistema, diferença } = req.corpo;
     const result = await pool.query(`
-      UPDATE cash_registers 
-      SET status = 'fechado', closing_balance = $1, counted_balance = $2, difference = $3, closed_at = NOW()
-      WHERE status = 'aberto' RETURNING *
-    `, [saldo_sistema, saldo_contado, diferenca]);
-    if (result.rows.length === 0) return res.status(404).json({ erro: 'Nenhum caixa aberto!' });
+      ATUALIZAR caixas registradoras
+      DEFINIR status = 'fechado', saldo_de_fechamento = $1, saldo_contado = $2, diferença = $3, fechado_em = AGORA()
+      ONDE status = 'aberto' RETORNANDO *
+    `, [saldo_sistema, saldo_contado, diferença]);
+    if (result.rows.length === 0) return res.status(404).json({ erro: 'Nenhum caixa aberta!' });
     res.json({ sucesso: true, caixa: result.rows[0] });
   } catch (e) {
     console.error('Fechar Caixa:', e);
@@ -154,7 +154,7 @@ app.post('/api/caixa/fechar', async (req, res) => {
 // PEDIDOS
 // ==========================================
 app.get('/api/pedidos', async (req, res) => {
-  try {
+  tentar {
     const result = await pool.query(`SELECT * FROM sales_orders ORDER BY created_at DESC`);
     res.json(result.rows);
   } catch (e) {
@@ -164,145 +164,145 @@ app.get('/api/pedidos', async (req, res) => {
 
 app.post('/api/pedidos/manual', async (req, res) => {
   const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const { nome_cliente, telefone_cliente, tipo, observacao, valor_total, itens, status } = req.body;
+  tentar {
+    aguarde cliente.query('BEGIN');
+    const { nome_cliente, telefone_cliente, tipo, observação, valor_total, itens, status } = req.body;
     const empresa = await client.query(`SELECT id FROM companies LIMIT 1`);
     const company_id = empresa.rows[0].id;
 
-    const pedido = await client.query(`
+    const pedido = aguarda cliente.query(`
       INSERT INTO sales_orders (company_id, customer_name, customer_phone, order_type, observation, total_amount, status, created_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW()) RETURNING id
-    `, [company_id, nome_cliente, telefone_cliente, tipo, observacao, valor_total, status]);
+      VALORES ($1, $2, $3, $4, $5, $6, $7, AGORA()) RETORNANDO id
+    `, [id_empresa, nome_cliente, telefone_cliente, tipo, observação, valor_total, status]);
     const pedidoId = pedido.rows[0].id;
 
-    for (const item of itens) {
-      await client.query(`
+    para (constante item de itens) {
+      aguarde cliente.consulta(`
         INSERT INTO order_items (order_id, product_name, quantity, unit_price)
-        VALUES ($1, $2, $3, $4)
+        VALORES ($1, $2, $3, $4)
       `, [pedidoId, item.nome_produto || item.nome, item.quantidade, item.preco_unitario || item.preco]);
       
-      await client.query(`
-        UPDATE products SET stock = stock - $1 WHERE name = $2
+      aguarde cliente.consulta(`
+        ATUALIZAR produtos DEFINIR estoque = estoque - $1 ONDE nome = $2
       `, [item.quantidade, item.nome_produto || item.nome]);
     }
 
-    await client.query('COMMIT');
+    aguarde client.query('COMMIT');
     res.json({ sucesso: true, id: pedidoId });
   } catch (e) {
-    await client.query('ROLLBACK');
+    aguarde client.query('ROLLBACK');
     console.error('Venda:', e);
     res.status(500).json({ erro: e.message });
-  } finally {
-    client.release();
+  } finalmente {
+    cliente.liberar();
   }
 });
 // ==========================================
-// ðŸ“… CARDÃPIO DO DIA
+// ðŸ“… CARDÁ PIO DO DIA
 // ==========================================
 
-// Carregar cardÃ¡pio do dia
+// Carregar cardápio do dia
 app.get('/api/cardapio-dia', async (req, res) => {
-  try {
+  tentar {
     const { data } = req.query;
     const dataAlvo = data || new Date().toISOString().split('T')[0];
     const empresa = await pool.query(`SELECT id FROM companies LIMIT 1`);
     if (empresa.rows.length === 0) return res.json([]);
 
     const result = await pool.query(`
-      SELECT id, nome, descricao, preco, categoria, disponivel, ordem
-      FROM daily_menu
-      WHERE company_id = $1 AND data = $2 AND disponivel = true
+      SELECT id, nome, descrição, preço, categoria, disponível, ordem
+      DO menu diário
+      ONDE company_id = $1 E data = $2 E disponivel = true
       ORDER BY categoria, ordem, nome
     `, [empresa.rows[0].id, dataAlvo]);
 
     res.json(result.rows);
   } catch (e) {
-    console.error('CardÃ¡pio dia:', e);
+    console.error('Cardápio dia:', e);
     res.status(500).json({ erro: e.message });
   }
 });
 
-// Salvar/atualizar item do cardÃ¡pio
+// Salvar/atualizar item do cardápio
 app.post('/api/cardapio-dia/salvar', async (req, res) => {
-  try {
-    const { data, nome, descricao, preco, categoria, disponivel, ordem } = req.body;
+  tentar {
+    const {dado, nome, descrição, preço, categoria, disponível, ordem } = req.body;
     const empresa = await pool.query(`SELECT id FROM companies LIMIT 1`);
-    if (empresa.rows.length === 0) return res.status(400).json({ erro: 'Empresa nÃ£o cadastrada' });
+    if (empresa.rows.length === 0) return res.status(400).json({ erro: 'Empresa não cadastrada' });
 
     const result = await pool.query(`
       INSERT INTO daily_menu (company_id, data, nome, descricao, preco, categoria, disponivel, ordem)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      ON CONFLICT (company_id, data, nome) DO UPDATE SET
-        descricao = EXCLUDED.descricao,
-        preco = EXCLUDED.preco,
-        categoria = EXCLUDED.categoria,
-        disponivel = EXCLUDED.disponivel,
-        ordem = EXCLUDED.ordem
-      RETURNING *
+      VALORES ($1, $2, $3, $4, $5, $6, $7, $8)
+      EM CASO DE CONFLITO (company_id, data, nome) FAÇA ATUALIZAÇÃO DE CONJUNTO
+        descrição = EXCLUÍDO. descrição,
+        preco = EXCLUÍDO.preco,
+        categoria = EXCLUÍDA.categoria,
+        disponivel = EXCLUÍDO.disponivel,
+        ordem = EXCLUÍDO.ordem
+      RETORNANDO *
     `, [empresa.rows[0].id, data || new Date().toISOString().split('T')[0],
-        nome, descricao || '', preco, categoria || 'Prato Principal',
-        disponivel !== false, ordem || 0]);
+        nome, descrição || '', preço, categoria || 'Prato Principal',
+        disponível !== falso, ordem || 0]);
 
     res.json({ sucesso: true, item: result.rows[0] });
   } catch (e) {
-    console.error('Salvar cardÃ¡pio:', e);
+    console.error('Salvar cardápio:', e);
     res.status(500).json({ erro: e.message });
   }
 });
 
 // Listar produtos para dropdown do PDV
 app.get('/api/produtos/lista', async (req, res) => {
-  try {
+  tentar {
     const result = await pool.query(`
-      SELECT name AS nome, price AS preco, stock AS estoque
-      FROM products
-      WHERE stock > 0
-      ORDER BY name
+      SELECIONE nome AS nome, preço AS preço, estoque AS estoque
+      Produtos da FROM
+      ONDE estoque > 0
+      ORDENAR POR nome
     `);
     res.json(result.rows);
   } catch (e) {
-    console.error('Lista produtos:', e);
+    console.error('Lista de produtos:', e);
     res.status(500).json({ erro: e.message });
   }
 });
 // ==========================================
-// ðŸ—‘ï¸ EXCLUIR item do cardÃ¡pio
+// ðŸ—'ï¸ EXCLUIR item do cardápio
 // ==========================================
 app.post('/api/cardapio-dia/excluir', async (req, res) => {
-  try {
+  tentar {
     const { id } = req.body;
     const empresa = await pool.query(`SELECT id FROM companies LIMIT 1`);
-    if (empresa.rows.length === 0) return res.status(400).json({ erro: 'Empresa nÃ£o cadastrada' });
+    if (empresa.rows.length === 0) return res.status(400).json({ erro: 'Empresa não cadastrada' });
 
     const result = await pool.query(`
-      DELETE FROM daily_menu
-      WHERE id = $1 AND company_id = $2
-      RETURNING *
+      EXCLUIR DO menu diário
+      ONDE id = $1 E company_id = $2
+      RETORNANDO *
     `, [id, empresa.rows[0].id]);
 
-    if (result.rowCount === 0) {
-      return res.status(404).json({ sucesso: false, erro: 'Item nÃ£o encontrado' });
+    se (resultado.rowCount === 0) {
+      return res.status(404).json({ sucesso: false, erro: 'Item não encontrado' });
     }
 
     res.json({ sucesso: true });
   } catch (e) {
-    console.error('Excluir cardÃ¡pio:', e);
+    console.error('Excluir cartão:', e);
     res.status(500).json({ sucesso: false, erro: e.message });
   }
 });
 // ==========================================
-// PAINEL ADM â€” pede senha
+// PAINEL ADM — pede senha
 // ==========================================
-function abrirAdm() {
-  const senha = prompt('ðŸ”’ Digite a senha ADM:');
-  const SENHA_ADM = 'admin123'; // â† ALTERE A SENHA AQUI SE QUISER
+função abrirAdm() {
+  const senha = prompt('ðŸ”' Digite a senha ADM:');
+  const SENHA_ADM = 'admin123'; // â† ALTERE A SENHA AQUI SE QUISER
   
-  if (senha === SENHA_ADM) {
+  se (senha === SENHA_ADM) {
     sessionStorage.setItem('adm_liberado', 'sim');
     window.location.href = '../dashboard.html';
-  } else if (senha !== null) {
-    alert('âŒ Senha incorreta!');
+  } senão se (senha !== null) {
+    alert('â ŒSenha incorreta!');
   }
 }
 // ==========================================
