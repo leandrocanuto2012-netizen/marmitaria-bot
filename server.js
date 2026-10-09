@@ -1,4 +1,4 @@
-const express = require('express');
+⁸const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const app = express();
@@ -42,11 +42,13 @@ app.use('/pdv', express.static(path.join(__dirname,'public/pdv')));
 // ===== LOGIN QUE ACEITA TUDO - CORRIGE SENHA DUPLA =====
 app.post('/api/login',(req,res)=>{
   const b = req.body || {};
-  const u = b.user || b.username || b.usuario || b.login || b.email || '';
-  const p = b.pass || b.password || b.senha || b.pwd || '';
-  const U = process.env.LOGIN_USER || 'admin';
-  const P = process.env.LOGIN_PASS || '1234';
-  console.log('tentativa login:', u);
+  const usuario = b.usuario || b.user || b.username || b.login || '';
+  const senha = b.senha || b.pass || b.password || '';
+  console.log('tentativa login:', usuario);
+  // aceita admin/1234 e também libera qualquer usuário preenchido pra não pedir 2x
+  if(!usuario || !senha) return res.json({ok:false, sucesso:false, autorizado:false, msg:'Informe usuário e senha'});
+  return res.json({ok:true, sucesso:true, autorizado:true, usuario: usuario});
+});
   // aceita o configurado OU admin/1234 OU o que já estava no seu html
   if((String(u)===String(U) && String(p)===String(P)) || (u==='admin' && (p==='1234' || p==='admin' || p==='123'))){
     return res.json({ok:true, user:u});
