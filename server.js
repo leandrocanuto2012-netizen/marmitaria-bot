@@ -1,115 +1,84 @@
-// server.js COMPATIVEL - não quebra seu cardapio, login, pdv
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-
 const app = express();
 app.use(express.json());
 
-const PORT = process.env.PORT || 3000;
+// libera pra seu html acessar
+app.use((req,res,next)=>{
+  res.header("Access-Control-Allow-Origin","*");
+  res.header("Access-Control-Allow-Headers","Content-Type");
+  next();
+});
 
-// ===== ajuda ler/salvar sem dar erro =====
-function ler(arq, padrao){
-  try{ if(fs.existsSync(arq)) return JSON.parse(fs.readFileSync(arq,'utf8')); }catch(e){}
+const PORT = process.env.PORT || 3000;
+const DATA = path.join(__dirname, 'data');
+try{ if(!fs.existsSync(DATA)) fs.mkdirSync(DATA); }catch(e){}
+
+function ler(nome, padrao){
+  // tenta em 3 lugares: data/, raiz, public/
+  let caminhos = [path.join(DATA,nome), path.join(__dirname,nome), path.join(__dirname,'public',nome)];
+  for(let c of caminhos){
+    try{ if(fs.existsSync(c)) return JSON.parse(fs.readFileSync(c,'utf8')); }catch(e){}
+  }
   return padrao;
 }
-function salvar(arq, dados){
-  try{ fs.writeFileSync(arq, JSON.stringify(dados)); }catch(e){}
+function salvar(nome, dados){
+  try{
+    fs.writeFileSync(path.join(DATA,nome), JSON.stringify(dados));
+    fs.writeFileSync(path.join(__dirname,nome), JSON.stringify(dados));
+  }catch(e){ console.log('erro salvar '+nome, e.message); }
 }
 
-// Cardapio padrão caso ainda não tenha arquivo
 const CARDAPIO_PADRAO = [
-  {id:1, nome:'Frango Grelhado', desc:'Arroz, feijao, fritas e salada', preco:18},
+  {id:1, nome:'Frango Grelhado', desc:'Arroz, feijao, fritas', preco:18},
   {id:2, nome:'Carne Assada', desc:'Arroz, feijao, farofa', preco:20},
-  {id:3, nome:'Feijoada', desc:'Completa com couve', preco:22},
-  {id:4, nome:'Strogonoff', desc:'Frango, arroz e palha', preco:22}
+  {id:3, nome:'Feijoada', desc:'Completa', preco:22}
 ];
 
-// ===== SERVE SUAS TELAS IGUAIS - NÃO MUDA NADA =====
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname,'public')));
 
-// ===== APIS QUE SEU CARDAPIO ANTIGO USA - CORRIGE ERRO AO CARREGAR =====
-app.get('/api/cardapio', (req,res)=>{
-  let c = ler('./cardapio.json', null) || ler('./produtos.json', null) || CARDAPIO_PADRAO;
-  // devolve nos 2 formatos pra não quebrar: array e objeto
-  res.json(c);
-});
-app.get('/api/produtos', (req,res)=>{
-  let c = ler('./cardapio.json', null) || ler('./produtos.json', null) || CARDAPIO_PADRAO;
-  res.json(c);
-});
-app.post('/api/cardapio', (req,res)=>{
-  salvar('./cardapio.json', req.body);
-  res.json({ok:true});
-});
-app.post('/api/produtos', (req,res)=>{
-  salvar('./cardapio.json', req.body);
-  res.json({ok:true});
-});
-
-// ===== PEDIDOS + CAIXA - JUNTA PDV + BOT =====
-app.get('/api/dados', (req,res)=>{
-  let pedidosBot = ler('./pedidos-bot.json', []);
-  let pedidosSite = ler('./pedidos.json', []);
-  let caixaBot = ler('./caixa-bot.json', []);
-  let caixaSite = ler('./caixa.json', []);
-  let cardapio = ler('./cardapio.json', null) || CARDAPIO_PADRAO;
-  let todosPed = [...pedidosSite, ...pedidosBot];
-  let todoCaixa = [...caixaSite, ...caixaBot];
-  let total = todoCaixa.reduce((s,v)=>s+(Number(v.total)||0),0);
+// TESTE DE BANCO - abre isso pra ver
+app.get('/api/debug',(req,res)=>{
   res.json({
-    ok:true,
-    cardapio: cardapio,
-    produtos: cardapio,
-    pedidos: [...todosPed].reverse(),
-    caixa: [...todoCaixa].reverse(),
-    totalCaixa: total,
-    total: total
+    pasta: __dirname,
+    tem_data: fs.existsSync(DATA),
+    pode_escrever: (()=>{ try{ fs.writeFileSync(path.join(DATA,'teste.txt'),'ok'); return true; }catch(e){ return e.message; } })(),
+    arquivos: (()=>{ try{ return fs.readdirSync(__dirname); }catch(e){ return e.message; } })()
   });
 });
 
-app.get('/api/pedidos', (req,res)=>{
-  let a = ler('./pedidos.json', []);
-  let b = ler('./pedidos-bot.json', []);
-  res.json([...a, ...b].reverse());
+app.get('/api/cardapio',(req,res)=>{
+  let c = ler('cardapio.json', null) || CARDAPIO_PADRAO;
+  if(c.cardapio) c = c.cardapio;
+  if(!Array.isArray(c)) c = CARDAPIO_PADRAO;
+  res.json(c);
+});
+app.get('/api/produtos',(req,res)=>{
+  let c = ler('cardapio.json', null) || CARDAPIO_PADRAO;
+  res.json(c);
+});
+app.get('/api/dados',(req,res)=>{
+  let pb = ler('pedidos-bot.json',[]);
+  let ps = ler('pedidos.json',[]);
+  let cb = ler('caixa-bot.json',[]);
+  let cs = ler('caixa.json',[]);
+  let card = ler('cardapio.json', CARDAPIO_PADRAO);
+  let todos = [...ps, ...pb];
+  let caixa = [...cs, ...cb];
+  res.json({ok:true, cardapio:card, produtos:card, pedidos:todos.reverse(), caixa:caixa.reverse(), totalCaixa: caixa.reduce((s,v)=>s+(Number(v.total)||0),0)});
 });
 
-app.get('/api/caixa', (req,res)=>{
-  let a = ler('./caixa.json', []);
-  let b = ler('./caixa-bot.json', []);
-  res.json([...a, ...b].reverse());
+app.post('/api/login',(req,res)=>{
+  let U = process.env.LOGIN_USER || 'admin';
+  let P = process.env.LOGIN_PASS || '1234';
+  res.json({ok: req.body.user===U && req.body.pass===P});
 });
 
-app.post('/api/novo-pedido', (req,res)=>{
-  let pedidos = ler('./pedidos.json', []);
-  const b = req.body || {};
-  const id = String(Date.now()).slice(-5);
-  const novo = {
-    id, nome: b.nome||'Balcao', clienteNome: b.nome||'Balcao', jid:'PDV',
-    itens: b.itensTexto||b.itens||'', itensTexto: b.itensTexto||b.itens||'',
-    total: Number(b.total)||0, tam: b.tamanho||'M', tamanho: b.tamanho||'M',
-    rest: b.restricao||'Nenhuma', restricao: b.restricao||'Nenhuma',
-    end: b.endereco||'Balcao', endereco: b.endereco||'Balcao',
-    pagamento: b.pagamento||'Dinheiro', status:'NOVO', tempo:'',
-    data: new Date().toLocaleString('pt-BR')
-  };
-  pedidos.push(novo); salvar('./pedidos.json', pedidos);
-  res.json({ok:true, id});
-});
-
-app.post('/api/login', (req,res)=>{
-  const USER = process.env.LOGIN_USER || 'admin';
-  const PASS = process.env.LOGIN_PASS || '1234';
-  const {user, pass} = req.body||{};
-  if(user===USER && pass===PASS) return res.json({ok:true});
-  res.json({ok:false});
-});
-
-// ===== LIGA BOT.JS SE EXISTIR, SE NÃO, NÃO DERRUBA O SITE =====
 try{
-  const botMod = require('./bot.js');
-  if(botMod.iniciarComServer) botMod.iniciarComServer(app);
+  const bot = require('./bot.js');
+  if(bot.iniciarComServer) bot.iniciarComServer(app);
   console.log('Bot ok');
-}catch(e){ console.log('Bot off, site segue on:', e.message); }
+}catch(e){ console.log('Bot off, site segue on: '+e.message); }
 
 app.listen(PORT, ()=>console.log('Rodando '+PORT));
